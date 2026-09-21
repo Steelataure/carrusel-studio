@@ -57,10 +57,14 @@ export async function POST(
       }
     });
 
+    const cleanName = carousel.name
+      ? carousel.name.trim().replace(/[<>:"/\\|?*]/g, "").replace(/\s+/g, "-")
+      : `carousel-${carousel.id}`;
+
     return new Response(new Uint8Array(zipBuffer), {
       headers: {
         "Content-Type": "application/zip",
-        "Content-Disposition": `attachment; filename="carousel-${carousel.name.replace(/[^a-zA-Z0-9-_]/g, "_")}.zip"`,
+        "Content-Disposition": `attachment; filename="${cleanName}.zip"`,
       },
     });
   } catch (error) {

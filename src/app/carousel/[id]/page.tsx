@@ -351,6 +351,7 @@ export default function CarouselEditorPage({ params }: PageProps) {
             <MusicPlayer />
             <ExportButton
               carouselId={carousel.id}
+              carouselName={carousel.name}
               slideCount={carousel.slides.length}
             />
           </div>

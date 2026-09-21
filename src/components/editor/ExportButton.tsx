@@ -6,10 +6,24 @@ import { Button } from "@/components/ui/button";
 
 interface ExportButtonProps {
   carouselId: string;
+  carouselName?: string;
   slideCount: number;
 }
 
-export function ExportButton({ carouselId, slideCount }: ExportButtonProps) {
+function getExportFileName(carouselName?: string, carouselId?: string): string {
+  const cleanTitle = carouselName
+    ?.trim()
+    .replace(/[<>:"/\\|?*]/g, "")
+    .replace(/\s+/g, "-");
+
+  return cleanTitle ? `${cleanTitle}.zip` : `carousel-${carouselId || "export"}.zip`;
+}
+
+export function ExportButton({
+  carouselId,
+  carouselName,
+  slideCount,
+}: ExportButtonProps) {
   const [exporting, setExporting] = useState(false);
   const [progress, setProgress] = useState({ current: 0, total: 0 });
   const [done, setDone] = useState(false);
@@ -19,6 +33,8 @@ export function ExportButton({ carouselId, slideCount }: ExportButtonProps) {
     setExporting(true);
     setDone(false);
     setProgress({ current: 0, total: slideCount });
+
+    const zipFileName = getExportFileName(carouselName, carouselId);
 
     try {
       const response = await fetch(`/api/carousels/${carouselId}/export`, {
@@ -58,7 +74,7 @@ export function ExportButton({ carouselId, slideCount }: ExportButtonProps) {
                   // Trigger download
                   const a = document.createElement("a");
                   a.href = data.downloadUrl;
-                  a.download = `carousel-${carouselId}.zip`;
+                  a.download = zipFileName;
                   a.click();
                   setDone(true);
                 }
@@ -74,7 +90,7 @@ export function ExportButton({ carouselId, slideCount }: ExportButtonProps) {
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = `carousel-${carouselId}.zip`;
+        a.download = zipFileName;
         a.click();
         URL.revokeObjectURL(url);
         setDone(true);
