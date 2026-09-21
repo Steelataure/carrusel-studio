@@ -15,6 +15,7 @@ import { ExportButton } from "@/components/editor/ExportButton";
 import { CaptionPanel } from "@/components/editor/CaptionPanel";
 import { FullscreenPreview } from "@/components/editor/FullscreenPreview";
 import { BrandSetup } from "@/components/brand/BrandSetup";
+import { MusicPlayer } from "@/components/editor/MusicPlayer";
 import type { Carousel, AspectRatio } from "@/types/carousel";
 import type { BrandConfig } from "@/types/brand";
 
@@ -347,6 +348,7 @@ export default function CarouselEditorPage({ params }: PageProps) {
             >
               {chatOpen ? "Hide Chat" : "Show Chat"}
             </button>
+            <MusicPlayer />
             <ExportButton
               carouselId={carousel.id}
               slideCount={carousel.slides.length}
