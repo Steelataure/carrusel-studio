@@ -16,12 +16,16 @@ export interface ReferenceImage {
   addedAt: string;
 }
 
+export type CarouselStatus = "draft" | "published";
+
 export interface Carousel {
   id: string;
   name: string;
   aspectRatio: AspectRatio;
   slides: Slide[];
   referenceImages: ReferenceImage[];
+  status?: CarouselStatus;
+  publishedAt?: string | null;
   caption?: string;
   hashtags?: string[];
   chatSessionId: string | null;

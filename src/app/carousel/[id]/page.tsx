@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useRef, use } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Trash2, Grid3X3, Bookmark, Maximize2, Check } from "lucide-react";
+import { Trash2, Grid3X3, Bookmark, Maximize2, Check, CheckCircle2, Clock } from "lucide-react";
 import { TopBar } from "@/components/layout/TopBar";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -156,6 +156,20 @@ export default function CarouselEditorPage({ params }: PageProps) {
       },
     });
   }, [carousel, id, router]);
+
+  const handleToggleStatus = useCallback(async () => {
+    if (!carousel) return;
+    const newStatus = carousel.status === "published" ? "draft" : "published";
+    const publishedAt = newStatus === "published" ? new Date().toISOString() : null;
+
+    setCarousel((prev) => (prev ? { ...prev, status: newStatus, publishedAt } : null));
+
+    await fetch(`/api/carousels/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: newStatus, publishedAt }),
+    });
+  }, [carousel, id]);
 
   const handleStreamStart = useCallback(() => {
     setIsGenerating(true);
@@ -347,6 +361,31 @@ export default function CarouselEditorPage({ params }: PageProps) {
               className="text-xs text-muted-foreground hover:text-foreground transition-colors px-3 py-1.5 rounded-md border border-border hover:bg-muted"
             >
               {chatOpen ? "Hide Chat" : "Show Chat"}
+            </button>
+            <button
+              onClick={handleToggleStatus}
+              className={`text-xs inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border transition-all ${
+                carousel.status === "published"
+                  ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/25 font-medium"
+                  : "border-border text-muted-foreground hover:text-foreground hover:bg-muted"
+              }`}
+              title={
+                carousel.status === "published"
+                  ? "Marqué comme publié (cliquer pour repasser en 'À publier')"
+                  : "Marquer comme publié"
+              }
+            >
+              {carousel.status === "published" ? (
+                <>
+                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
+                  <span>Publié</span>
+                </>
+              ) : (
+                <>
+                  <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+                  <span>À publier</span>
+                </>
+              )}
             </button>
             <MusicPlayer />
             <ExportButton

@@ -34,6 +34,8 @@ export async function createCarousel(
     aspectRatio,
     slides: [],
     referenceImages: [],
+    status: "draft",
+    publishedAt: null,
     chatSessionId: null,
     isTemplate: false,
     tags: [],
@@ -47,7 +49,7 @@ export async function createCarousel(
 
 export async function updateCarousel(
   id: string,
-  updates: Partial<Pick<Carousel, "name" | "aspectRatio" | "tags" | "chatSessionId" | "caption" | "hashtags">>
+  updates: Partial<Pick<Carousel, "name" | "aspectRatio" | "tags" | "chatSessionId" | "caption" | "hashtags" | "status" | "publishedAt">>
 ): Promise<Carousel | null> {
   const data = await load();
   const idx = data.carousels.findIndex((c) => c.id === id);
