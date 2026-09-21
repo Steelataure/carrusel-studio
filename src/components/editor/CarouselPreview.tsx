@@ -4,7 +4,6 @@ import { useState, type CSSProperties } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SlideRenderer } from "./SlideRenderer";
-import { SafeZoneOverlay } from "./SafeZoneOverlay";
 import type { Slide, AspectRatio } from "@/types/carousel";
 
 interface CarouselPreviewProps {
@@ -72,9 +71,9 @@ export function CarouselPreview({
           <SlideRenderer
             html={slide.html}
             aspectRatio={aspectRatio}
+            showSafeZones={showSafeZones}
             style={{ width: "100%", height: "100%" }}
           />
-          <SafeZoneOverlay aspectRatio={aspectRatio} visible={showSafeZones} />
         </div>
 
         {/* Right arrow */}

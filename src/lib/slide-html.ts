@@ -45,6 +45,7 @@ export function wrapSlideHtml(
 ): string {
   const { width, height } = DIMENSIONS[aspectRatio];
   const fontFamilies = extractFontFamilies(slideHtml);
+  const is916 = aspectRatio === "9:16";
 
   let fontBlock = "";
   if (options?.inlineFontCss) {
@@ -69,10 +70,33 @@ export function wrapSlideHtml(
   ${fontBlock}
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    html, body { width: ${width}px; height: ${height}px; overflow: hidden; }
+    html, body {
+      width: ${width}px;
+      height: ${height}px;
+      overflow: hidden;
+      margin: 0;
+      padding: 0;
+      background: #0A0A0F;
+    }
+    /* Ensure root slide element stretches seamlessly across 1:1, 4:5, and 9:16 formats */
+    body > * {
+      width: 100% !important;
+      min-height: 100% !important;
+      height: 100% !important;
+      box-sizing: border-box !important;
+      ${
+        is916
+          ? `
+      /* Stories & Reels safe-zones: extra breathing room top and bottom */
+      padding-top: max(140px, 9%) !important;
+      padding-bottom: max(160px, 10%) !important;
+      `
+          : ""
+      }
+    }
   </style>
 </head>
-<body>
+<body class="ratio-${aspectRatio.replace(":", "-")}">
   ${slideHtml}
 </body>
 </html>`;

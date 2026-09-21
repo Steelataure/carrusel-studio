@@ -2,6 +2,7 @@
 
 import { useMemo, useRef, useEffect, useState, useCallback } from "react";
 import { wrapSlideHtml } from "@/lib/slide-html";
+import { SafeZoneOverlay } from "./SafeZoneOverlay";
 import type { AspectRatio } from "@/types/carousel";
 import { DIMENSIONS } from "@/types/carousel";
 
@@ -10,6 +11,7 @@ interface SlideRendererProps {
   aspectRatio: AspectRatio;
   className?: string;
   style?: React.CSSProperties;
+  showSafeZones?: boolean;
 }
 
 export function SlideRenderer({
@@ -17,6 +19,7 @@ export function SlideRenderer({
   aspectRatio,
   className,
   style,
+  showSafeZones = false,
 }: SlideRendererProps) {
   const outerRef = useRef<HTMLDivElement>(null);
   const [dims, setDims] = useState<{ w: number; h: number } | null>(null);
@@ -93,6 +96,9 @@ export function SlideRenderer({
               pointerEvents: "none",
             }}
           />
+          {showSafeZones && (
+            <SafeZoneOverlay aspectRatio={aspectRatio} visible={showSafeZones} />
+          )}
         </div>
       )}
     </div>
