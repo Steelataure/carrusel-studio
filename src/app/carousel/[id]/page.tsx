@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useRef, use } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Trash2, Grid3X3, Bookmark, Maximize2 } from "lucide-react";
+import { Trash2, Grid3X3, Bookmark, Maximize2, Check } from "lucide-react";
 import { TopBar } from "@/components/layout/TopBar";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -13,9 +13,10 @@ import { SlideFilmstrip } from "@/components/editor/SlideFilmstrip";
 import { AspectRatioSelector } from "@/components/editor/AspectRatioSelector";
 import { ExportButton } from "@/components/editor/ExportButton";
 import { CaptionPanel } from "@/components/editor/CaptionPanel";
-import { SafeZoneOverlay } from "@/components/editor/SafeZoneOverlay";
 import { FullscreenPreview } from "@/components/editor/FullscreenPreview";
+import { BrandSetup } from "@/components/brand/BrandSetup";
 import type { Carousel, AspectRatio } from "@/types/carousel";
+import type { BrandConfig } from "@/types/brand";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -32,6 +33,9 @@ export default function CarouselEditorPage({ params }: PageProps) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [showSafeZones, setShowSafeZones] = useState(false);
   const [showFullscreen, setShowFullscreen] = useState(false);
+  const [showBrandSetup, setShowBrandSetup] = useState(false);
+  const [brand, setBrand] = useState<BrandConfig | null>(null);
+  const [templateSaved, setTemplateSaved] = useState(false);
 
   // Confirm dialog state
   const [confirmState, setConfirmState] = useState<{
@@ -74,6 +78,15 @@ export default function CarouselEditorPage({ params }: PageProps) {
   useEffect(() => {
     const load = async () => {
       await fetchCarousel();
+      try {
+        const brandRes = await fetch("/api/brand");
+        if (brandRes.ok) {
+          const brandData = await brandRes.json();
+          setBrand(brandData);
+        }
+      } catch {
+        // ignore
+      }
       try {
         const res = await fetch("/api/chat/check");
         const data: { available?: boolean } = await res.json();
@@ -200,6 +213,7 @@ export default function CarouselEditorPage({ params }: PageProps) {
         title={carousel.name}
         showBack
         editable
+        onSettingsClick={() => setShowBrandSetup(true)}
         onTitleChange={async (name) => {
           const res = await fetch(`/api/carousels/${id}`, {
             method: "PUT",
@@ -211,6 +225,18 @@ export default function CarouselEditorPage({ params }: PageProps) {
             setCarousel(updated);
           }
         }}
+      />
+
+      <BrandSetup
+        open={showBrandSetup}
+        onComplete={() => {
+          setShowBrandSetup(false);
+          fetch("/api/brand")
+            .then((r) => r.json())
+            .then((data) => setBrand(data))
+            .catch(() => {});
+        }}
+        initialBrand={brand || undefined}
       />
 
       {/* Fullscreen preview */}
@@ -280,20 +306,31 @@ export default function CarouselEditorPage({ params }: PageProps) {
               <Grid3X3 className="h-3.5 w-3.5" />
             </Button>
             <Button
-              variant="ghost"
+              variant={templateSaved ? "outline" : "ghost"}
               size="sm"
               onClick={async () => {
-                await fetch("/api/templates", {
+                const res = await fetch("/api/templates", {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
                   body: JSON.stringify({ carouselId: carousel.id }),
                 });
+                if (res.ok) {
+                  setTemplateSaved(true);
+                  setTimeout(() => setTemplateSaved(false), 2500);
+                }
               }}
-              className="text-muted-foreground"
+              className={templateSaved ? "border-accent text-accent" : "text-muted-foreground"}
               aria-label="Save as template"
-              title="Save as template"
+              title={templateSaved ? "Saved as template!" : "Save as template"}
             >
-              <Bookmark className="h-3.5 w-3.5" />
+              {templateSaved ? (
+                <span className="flex items-center gap-1 text-xs text-accent">
+                  <Check className="h-3.5 w-3.5" />
+                  Saved
+                </span>
+              ) : (
+                <Bookmark className="h-3.5 w-3.5" />
+              )}
             </Button>
             <Button
               variant="ghost"

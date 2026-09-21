@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getTemplate } from "@/lib/templates";
-import { createCarousel, addSlide } from "@/lib/carousels";
+import { createCarousel, addSlide, getCarousel } from "@/lib/carousels";
 
 export async function POST(
   _request: Request,
@@ -23,5 +23,6 @@ export async function POST(
     await addSlide(carousel.id, slide.html, slide.notes);
   }
 
-  return NextResponse.json(carousel, { status: 201 });
+  const updatedCarousel = await getCarousel(carousel.id);
+  return NextResponse.json(updatedCarousel ?? carousel, { status: 201 });
 }
