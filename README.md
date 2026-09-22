@@ -2,9 +2,9 @@
 
 # ⚡ Carrusel Studio
 
-### Créez des carrousels & des reels viraux avec l'IA. Exportez en PNG pixel-perfect & vidéo 9:16.
+### Design viral Instagram carousels & animated reels with AI. Export pixel-perfect PNGs & 9:16 videos.
 
-**Local-first. Open source. Propulsé par Steelataure.**
+**Local-first. Open source. Built by Steelataure.**
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-1a1a2e.svg?style=flat-square)](./LICENSE)
 [![Built with Claude](https://img.shields.io/badge/built%20with-Claude-e94560.svg?style=flat-square)](https://claude.ai)
@@ -20,91 +20,91 @@
 
 ---
 
-## 📑 Sommaire
+## 📑 Table of Contents
 
-- [Pourquoi Carrusel Studio ?](#-pourquoi-carrusel-studio-)
-- [Fonctionnalités Clés](#-fonctionnalités-clés)
-- [Aperçu de l'Interface](#-aperçu-de-linterface)
-- [Démarrage Rapide (60 secondes)](#-démarrage-rapide-60-secondes)
-- [Comment fonctionne l'IA](#-comment-fonctionne-lia)
+- [Why Carrusel Studio?](#-why-carrusel-studio)
+- [Key Features](#-key-features)
+- [Interface Overview](#-interface-overview)
+- [Quickstart (60 seconds)](#-quickstart-60-seconds)
+- [How the AI Works](#-how-the-ai-works)
 - [Slash Commands](#-slash-commands)
 - [Architecture & Tech Stack](#-architecture--tech-stack)
-- [Structure du Projet](#-structure-du-projet)
-- [À propos de l'Auteur](#-à-propos-de-lauteur)
-- [Licence](#-licence)
+- [Project Structure](#-project-structure)
+- [About the Author](#-about-the-author)
+- [License](#-license)
 
 ---
 
-## ✨ Pourquoi Carrusel Studio ?
+## ✨ Why Carrusel Studio?
 
-Concevoir des carrousels Instagram et des vidéos Reels de haute qualité demande des heures chaque semaine. Les créateurs se retrouvent souvent face à 3 frustrations :
+Designing high-converting Instagram carousels and video reels eats hours every week. Creators usually face three frustrating bottlenecks:
 
-- 💸 **Payer 20 à 60€/mois** pour des outils SaaS fermés et limités
-- 🥱 **Utiliser des templates Canva génériques** vus et revus partout sur les réseaux
-- ⏳ **Perdre ses week-ends sur Figma** à ajuster manuellement chaque alignement et chaque typo
+- 💸 **Paying $20–60/month** for closed-source SaaS tools that restrict customization.
+- 🥱 **Wrestling generic Canva templates** that everyone else on social media already uses.
+- ⏳ **Losing weekends in Figma** nudging text boxes and manual alignments for every single slide.
 
-**Carrusel Studio change la donne.** Conçu pour les créateurs exigeants, les développeurs et les marques personnelles :
+**Carrusel Studio changes the paradigm.** Built for developers, creators, and personal brands who want complete leverage:
 
-1. **Génération intelligente** : Discutez avec l'IA pour concevoir des slides uniques en vrai HTML/CSS.
-2. **Édition ultra-rapide** : Modifiez n'importe quel texte ou bloc de code directement en double-cliquant sur la slide, sans passer par l'IA.
-3. **Titres viraux & Anti-Shadowban** : Obtenez 3 variantes de titres optimisés pour le taux de clic (Curiosité, Erreur, Résultat), une légende engageante et des hashtags ciblés conformes à l'algorithme 2026.
-4. **Planning 30 jours** : Visualisez votre calendrier de publication mensuel et planifiez vos posts en 1 clic grâce à l'auto-planification séquentielle.
-5. **Multi-format PNG & Reel 9:16** : Exportez vos carrousels en images PNG nettes ou transformez-les en **vidéos animées 9:16** avec transitions fluides et musique d'ambiance intégrée pour TikTok, Instagram Reels et YouTube Shorts.
-6. **100% Local-First** : Vos créations, polices et configurations restent sur votre ordinateur. Zéro abonnement, zéro dépendance cloud imposée.
-
----
-
-## 🧰 Fonctionnalités Clés
-
-- 🔍 **Recherche instantanée & Filtres thématiques** : Retrouvez n'importe quel carrousel en temps réel avec le raccourci `/` et filtrez par sujet (*Git, Docker, Python, Architecture, TypeScript, SQL, Terminal, Carrière*).
-- 📅 **Calendrier de Publication 30 Jours** : Vue calendrier mensuelle interactive avec glisser-déposer et bouton magique **"Auto-planifier (1/j)"**.
-- ✏️ **Édition Rapide de Slide (Quick Edit)** : Double-clic sur une slide pour modifier directement les titres, sous-titres, corps de texte et blocs de code avec prévisualisation en direct.
-- 🎯 **Titres Viraux & Légendes Anti-Shadowban** :
-  - 3 variantes de titres (Tests A/B) avec bouton 1-clic pour appliquer le titre au carrousel
-  - Hook optimisé (< 125 car.), résumé en puces, trigger de sauvegarde 🔖
-  - 4-5 hashtags ultra-ciblés
-- 🎬 **Export Vidéo / Reel 9:16 Animé** : Générez une vidéo verticale Full HD prête à poster avec choix des transitions (*Fondu doux, Glissement, Zoom lent*), durée par slide et musique intégrée.
-- 🎵 **Lecteur d'Ambiance Sonore** : Pistes générées par Web Audio (*Cyberpunk Neon Synthwave, Midnight Lofi Code, Dark Terminal*).
-- 📐 **Ratios d'aspect Instagram** : Support natif 1:1 (1080×1080), 4:5 (1080×1350) et 9:16 (1080×1920).
-- 🛡️ **Overlay Safe Zones** : Vérifiez que vos textes ne sont pas masqués par les boutons de l'interface Instagram (Stories / Reels).
-- 🎨 **Charte Graphique Personnalisable** : Couleurs, polices Google Fonts, mots-clés de style injectés automatiquement dans chaque génération.
-- 💾 **Export ZIP propre** : Fichier ZIP automatiquement nommé d'après le titre de votre carrousel.
+1. **Intelligent Generation**: Chat with AI to construct unique, modern slides built in real HTML/CSS.
+2. **Quick Edit Mode**: Double-click any slide to modify headlines, body copy, or code blocks in seconds without waiting on AI.
+3. **Viral A/B Titles & Anti-Shadowban**: Generate 3 high-CTR title variations (Curiosity, Error, Action angles), engaging captions, and algorithm-compliant hashtags.
+4. **30-Day Visual Planning**: Schedule your cadence with a full monthly publication calendar and 1-click sequential auto-scheduling.
+5. **Multi-Format Export**: Export razor-sharp PNG archives or transform your slides into **animated 9:16 vertical videos** with smooth transitions and ambient soundscapes for TikTok, Instagram Reels, and YouTube Shorts.
+6. **100% Local-First**: Your designs, fonts, and data stay on your machine. No accounts, no subscriptions, no vendor lock-in.
 
 ---
 
-## 🎬 Aperçu de l'Interface
+## 🧰 Key Features
 
-**Dashboard** — recherche instantanée, filtres par thématiques, statut de publication et bascule calendrier :
+- 🔍 **Instant Search & Topic Filters**: Find any carousel in real-time with the `/` keyboard shortcut and filter by topic pills (*Git, Docker, Python, Architecture, TypeScript, SQL, Terminal, Career*).
+- 📅 **30-Day Publication Calendar**: Monthly visual planning calendar with drag-and-drop status scheduling and an **"Auto-Schedule (1/day)"** sequential scheduler.
+- ✏️ **Quick Edit Slide Modal**: Double-click any slide in the preview to edit text, code snippets, and markup directly with a real-time live preview.
+- 🎯 **Viral Titles & Anti-Shadowban Captions**:
+  - 3 A/B testable hook variations with a 1-click **"Apply Title"** button
+  - Hook-optimized captions (< 125 chars before fold) with save-triggers 🔖
+  - 4–5 targeted hashtags (free from banned/flagged tags)
+- 🎬 **Animated 9:16 Reel/Video Export**: Turn slides into high-definition vertical videos with customizable slide timing (2s, 3s, 4s), transitions (*Crossfade, Push Slide, Ken Burns Zoom*), and integrated audio.
+- 🎵 **Procedural Ambient Soundscapes**: Built-in Web Audio engine featuring *Cyberpunk Neon Synthwave*, *Midnight Lofi Code*, and *Dark Terminal Ambient*.
+- 📐 **Multiple Aspect Ratios**: Native support for 1:1 (1080×1080), 4:5 (1080×1350), and 9:16 (1080×1920).
+- 🛡️ **Instagram Safe-Zone Overlay**: Verify that headlines and essential elements aren't covered by Instagram Stories or Reels UI overlays.
+- 🎨 **Brand Identity System**: Customize colors, Google Fonts, and styling keywords that automatically seed every AI prompt.
+- 💾 **Clean ZIP Filenames**: Exported ZIP files automatically match your carousel title for easy file management.
+
+---
+
+## 🎬 Interface Overview
+
+**Dashboard** — real-time search, topic filters, publication status tabs, and 30-day calendar toggle:
 
 ![Dashboard](./docs/screenshots/dashboard.png)
 
-**Éditeur** — panneau de chat IA (gauche), prévisualisation dynamique (centre), filmstrip réorganisable (bas), titres viraux & export :
+**Editor** — AI assistant chat (left), live interactive preview (center), reorderable filmstrip (bottom), viral titles panel, and video export:
 
 ![Editor](./docs/screenshots/editor.png)
 
 ---
 
-## 🚀 Démarrage Rapide (60 secondes)
+## 🚀 Quickstart (60 seconds)
 
 ### Installation
 
 ```bash
-# Cloner le repository
+# Clone the repository
 git clone https://github.com/Steelataure/-carrusel-studio.git
 cd -carrusel-studio
 
-# Installer les dépendances et initialiser les données
+# Install dependencies and seed local data
 npm run setup
 
-# Lancer le serveur de développement
+# Start the development server
 npm run dev
 ```
 
-Ouvrez ensuite [http://localhost:3000](http://localhost:3000) dans votre navigateur.
+Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-### Utilisation avec Claude Code (Optionnel)
+### Using with Claude Code (Optional)
 
-Si vous utilisez [Claude Code](https://docs.anthropic.com/en/docs/claude-code) :
+If you use [Claude Code](https://docs.anthropic.com/en/docs/claude-code):
 
 ```bash
 claude
@@ -113,43 +113,43 @@ claude
 
 ---
 
-## 💬 Comment fonctionne l'IA
+## 💬 How the AI Works
 
-L'agent utilise le **CLI Claude** exécuté en sous-processus via `/api/chat`. Les messages sont diffusés au navigateur en streaming temps réel via Server-Sent Events (SSE).
+The in-app agent invokes the **Claude CLI** as a subprocess through `/api/chat`. Messages stream to the browser via Server-Sent Events (SSE).
 
-Quand vous demandez un carrousel à l'IA :
+When generating slides:
 
-1. L'agent lit votre charte graphique (`brand.json`) et le contexte du carrousel.
-2. Il génère chaque slide sous forme de HTML/CSS propre et responsive.
-3. Il crée automatiquement la slide via l'API locale `/api/carousels/[id]/slides`.
-4. La nouvelle slide apparaît en direct dans votre éditeur.
+1. The agent parses your brand configuration (`brand.json`) and active carousel state.
+2. It generates each slide as clean, self-contained HTML/CSS.
+3. It persists the slide via the local `/api/carousels/[id]/slides` endpoint.
+4. The slide renders immediately inside the sandboxed preview and filmstrip.
 
-### Comment les slides deviennent des PNG et des Reels
+### How Slides Become PNGs and Reels
 
-- **Export PNG** : [Puppeteer](https://pptr.dev) capture chaque slide aux dimensions exactes en haute définition, sans perte de qualité.
-- **Export Reel 9:16** : Un moteur de rendu Canvas anime les transitions entre vos slides et combine le flux vidéo avec le synthétiseur audio Web Audio pour produire un fichier vidéo prêt à être publié.
+- **PNG Export**: [Puppeteer](https://pptr.dev) captures each slide at exact Instagram pixel dimensions with font inlining and zero compression artifacts.
+- **Reel Video Export**: A client-side Canvas compositor animates transitions across slides and merges the video stream with the Web Audio procedural synthesizer to produce a publication-ready vertical video.
 
 ---
 
 ## 🛠 Slash Commands
 
-Si vous utilisez le CLI :
+If running inside Claude Code CLI:
 
-| Commande        | Description                                                                              |
+| Command         | Description                                                                              |
 |-----------------|------------------------------------------------------------------------------------------|
-| `/start [port]` | Installe, initialise les données, démarre le serveur et ouvre le navigateur.             |
-| `/stop [port]`  | Arrête le serveur de développement (par défaut `:3000`).                                  |
-| `/reset`        | Réinitialise les données locales (carrousels, templates, charte) avec confirmation.       |
-| `/doctor`       | Diagnostic de l'environnement : version de Node, dépendances, ports et fichiers requis.  |
+| `/start [port]` | Installs dependencies, seeds data, starts dev server, and launches the browser.          |
+| `/stop [port]`  | Terminates the running development server (default `:3000`).                             |
+| `/reset`        | Clears local carousel and template caches and re-seeds default data.                     |
+| `/doctor`       | Runs system diagnostics: Node version, CLI path, dependencies, and port availability.    |
 
-Commandes npm équivalentes :
+Standard npm commands:
 
 ```bash
-npm run setup     # installation des dépendances et initialisation
-npm run dev       # démarrage du serveur de dev
-npm run build     # compilation de production Next.js
-npm run lint      # validation TypeScript et ESLint
-npm run doctor    # diagnostic de santé du projet
+npm run setup     # install dependencies and initialize data files
+npm run dev       # start dev server
+npm run build     # production Next.js build
+npm run lint      # run ESLint and TypeScript checks
+npm run doctor    # run environment diagnostics
 ```
 
 ---
@@ -158,49 +158,49 @@ npm run doctor    # diagnostic de santé du projet
 
 ```
 carrusel-studio/
-├── data/                    # Données locales (carousels.json, brand.json, templates.json)
+├── data/                    # Local storage (carousels.json, brand.json, templates.json)
 ├── src/
-│   ├── app/                 # Routes Next.js (Dashboard, Éditeur, API Endpoints)
+│   ├── app/                 # Next.js App Router (Dashboard, Editor, API routes)
 │   ├── components/
-│   │   ├── brand/           # Configuration de charte graphique
-│   │   ├── chat/            # Panneau de discussion IA
-│   │   ├── dashboard/       # Calendrier 30J & composants du Dashboard
-│   │   ├── editor/          # Prévisualisation, Quick Edit, CaptionModal, ReelExport, Audio
-│   │   ├── layout/          # TopBar & navigation
-│   │   ├── templates/       # Galerie de modèles
-│   │   └── ui/              # Composants Radix UI / styling
-│   ├── lib/                 # Moteurs d'export, audio-engine, caption-generator, helpers
-│   └── types/               # Définitions TypeScript
+│   │   ├── brand/           # Brand style setup modal
+│   │   ├── chat/            # AI chat panel & reference images
+│   │   ├── dashboard/       # 30-Day publication calendar & dashboard controls
+│   │   ├── editor/          # Preview, Quick Edit, CaptionModal, ReelExport, Audio
+│   │   ├── layout/          # TopBar & header navigation
+│   │   ├── templates/       # Template gallery & card components
+│   │   └── ui/              # Radix UI primitives & design tokens
+│   ├── lib/                 # Slide compilation, audio-engine, caption-generator, exports
+│   └── types/               # TypeScript domain interfaces
 ```
 
-- **Framework** : Next.js 16 (Turbopack) + React 19
-- **Langage** : TypeScript 5
-- **Styling** : Tailwind CSS v4 + animations CSS personnalisées
-- **Drag & Drop** : `@dnd-kit/core` & `@dnd-kit/sortable`
-- **Rendu & Export** : Puppeteer + Sharp + Web Audio API + MediaRecorder
+- **Framework**: Next.js 16 (Turbopack) + React 19
+- **Language**: TypeScript 5
+- **Styling**: Vanilla CSS + Tailwind CSS v4 design utilities
+- **Drag & Drop**: `@dnd-kit/core` & `@dnd-kit/sortable`
+- **Rendering & Video**: Puppeteer + Sharp + Web Audio API + MediaRecorder
 
 ---
 
-## 👤 À propos de l'Auteur
+## 👤 About the Author
 
-**Carrusel Studio** est développé et maintenu par **[Steelataure](https://github.com/Steelataure)**.
+**Carrusel Studio** is developed and maintained by **[Steelataure](https://github.com/Steelataure)**.
 
-Conçu pour automatiser la création de contenu tech, de carrousels pédagogiques et de vidéos verticales percutantes pour Instagram, TikTok, LinkedIn et YouTube Shorts.
+Designed to streamline high-volume technical content creation, educational carousels, and vertical video publishing across Instagram, TikTok, LinkedIn, and YouTube Shorts.
 
-Pour soutenir le projet :
-- ⭐ **Ajoutez une étoile au repository GitHub** : [Steelataure/-carrusel-studio](https://github.com/Steelataure/-carrusel-studio.git)
-- 🚀 **Partagez vos retours et vos créations**
+If you find this project valuable:
+- ⭐ **Star this repository**: [Steelataure/-carrusel-studio](https://github.com/Steelataure/-carrusel-studio.git)
+- 🚀 **Share your feedback and feature suggestions**
 
 ---
 
-## 📄 Licence
+## 📄 License
 
-Ce projet est sous licence [MIT](./LICENSE) — libre d'utilisation, de modification et de distribution.
+Distributed under the [MIT License](./LICENSE) — free to use, customize, and extend.
 
 <div align="center">
 
-**Développé avec ❤️ par [Steelataure](https://github.com/Steelataure).**
+**Built with ❤️ by [Steelataure](https://github.com/Steelataure).**
 
-*Créé pour propulser votre audience et votre contenu au niveau supérieur.*
+*Engineered to take your content and audience to the next level.*
 
 </div>
