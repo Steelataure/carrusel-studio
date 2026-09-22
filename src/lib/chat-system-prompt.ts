@@ -55,7 +55,7 @@ ${presetSection}
 - Slide 1 = HOOK : promesse ou question choc, 8 mots MAXIMUM, très gros texte impactant qui arrête le scroll instantanément.
 - Une seule idée par slide : texte court, percutant et aéré, JAMAIS de pavé de texte.
 - Vulgarisation Tech & IA : expliquer les concepts (API, HTTP, algorithmes, architecture...) simplement. Utiliser de courts blocs de code épurés (style terminal / JetBrains Mono) ou mini-schémas conceptuels quand c'est pertinent.
-- Dernière slide = Appel à l'action (CTA) : inviter à s'abonner (@LeDevCodeur), sauvegarder le carrousel et partager.
+- Dernière slide = Appel à l'action (CTA) : inviter à s'abonner (@Steelataure), sauvegarder le carrousel et partager.
 ${
   carousel?.aspectRatio === "9:16"
     ? "- Safe-zone Stories / Reels 9:16 : padding haut 140-160px (pour l'interface Instagram Story/Reel), padding bas 160-200px (pour la barre de réponse et actions), padding côtés 80px. Centrer le contenu critique au centre."
@@ -71,7 +71,7 @@ ${
    - Slides 2-3: Setup — mise en contexte et problème vulgarisé
    - Slides 4-6: Value — 1 idée clé par slide, texte concis, mini-blocs de code ou schémas
    - Slide 7: Synthèse ou récapitulatif
-   - Slide 8 (ou dernière): CTA — s'abonner (@LeDevCodeur), sauvegarder, partager
+   - Slide 8 (ou dernière): CTA — s'abonner (@Steelataure), sauvegarder, partager
 3. Create each slide via the API, one by one
 4. After all slides are created, offer to generate caption + hashtags in French
 

@@ -10,13 +10,12 @@ export const maxDuration = 120;
 async function processFrameExport(
   id: string,
   providedSlides?: Slide[],
-  providedRatio?: AspectRatio
+  providedRatio?: AspectRatio | "auto"
 ) {
   let slides: Slide[] = providedSlides || [];
-  const ratio: AspectRatio = providedRatio || "9:16";
+  const carousel = await getCarousel(id);
 
   if (slides.length === 0) {
-    const carousel = await getCarousel(id);
     if (!carousel) {
       return NextResponse.json({ error: "Carousel non trouvé" }, { status: 404 });
     }
@@ -27,8 +26,23 @@ async function processFrameExport(
     return NextResponse.json({ error: "Aucune slide à exporter" }, { status: 400 });
   }
 
+  // Detect the true intended aspect ratio to avoid stretching or distorting slides
+  let ratio: AspectRatio = "4:5";
+  const firstSlideHtml = slides[0]?.html || "";
+  if (firstSlideHtml.includes("height:1350px") || firstSlideHtml.includes("height: 1350px")) {
+    ratio = "4:5";
+  } else if (firstSlideHtml.includes("height:1080px") || firstSlideHtml.includes("height: 1080px")) {
+    ratio = "1:1";
+  } else if (firstSlideHtml.includes("height:1920px") || firstSlideHtml.includes("height: 1920px")) {
+    ratio = "9:16";
+  } else if (providedRatio && providedRatio !== "auto") {
+    ratio = providedRatio;
+  } else if (carousel?.aspectRatio) {
+    ratio = carousel.aspectRatio;
+  }
+
   try {
-    // Render all slides to PNG buffers at exact dimensions (1080x1920 for 9:16)
+    // Render all slides to PNG buffers at native crisp dimensions
     const pngBuffers = await exportAllSlides(slides, ratio);
 
     // Convert to base64 data URLs
@@ -38,7 +52,7 @@ async function processFrameExport(
     }));
     const dataUrls = frames.map((f) => f.dataUrl);
 
-    return NextResponse.json({ frames, dataUrls });
+    return NextResponse.json({ frames, dataUrls, ratio });
   } catch (error) {
     console.error("Frame export error:", error);
     const message = error instanceof Error ? error.message : "Erreur serveur";
@@ -52,8 +66,8 @@ export async function GET(
 ) {
   const { id } = await params;
   const url = new URL(request.url);
-  const ratio = (url.searchParams.get("ratio") as AspectRatio) || "9:16";
-  return processFrameExport(id, undefined, ratio);
+  const ratioParam = url.searchParams.get("ratio") as AspectRatio | "auto" | null;
+  return processFrameExport(id, undefined, ratioParam || undefined);
 }
 
 export async function POST(
@@ -62,11 +76,11 @@ export async function POST(
 ) {
   const { id } = await params;
   let slides: Slide[] | undefined;
-  let ratio: AspectRatio = "9:16";
+  let ratioParam: AspectRatio | "auto" | undefined;
 
   try {
     const body = await request.json();
-    if (body.ratio) ratio = body.ratio;
+    if (body.ratio) ratioParam = body.ratio;
     if (Array.isArray(body.slides) && body.slides.length > 0) {
       slides = body.slides;
     }
@@ -74,5 +88,5 @@ export async function POST(
     // ignore
   }
 
-  return processFrameExport(id, slides, ratio);
+  return processFrameExport(id, slides, ratioParam);
 }

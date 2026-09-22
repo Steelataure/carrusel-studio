@@ -218,11 +218,11 @@ export function ReelExportDialog({
       if (!ctx) throw new Error("Impossible de créer le contexte 2D Canvas");
 
       // 2. Load rendered frames from server HD export route
-      setStatusText("Génération des frames HD 1080x1920...");
+      setStatusText("Génération des frames HD...");
       const framesRes = await fetch(`/api/carousels/${carouselId}/frames`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ratio: "9:16", slides }),
+        body: JSON.stringify({ ratio: "auto", slides }),
       });
 
       if (!framesRes.ok) {
@@ -370,9 +370,6 @@ export function ReelExportDialog({
             const currentImg = loadedImages[slideIndex];
             const nextImg = loadedImages[nextIndex];
 
-            ctx.fillStyle = "#0A0A0F";
-            ctx.fillRect(0, 0, width, height);
-
             // Transition timing
             const isTransitioning =
               timeIntoSlide > slideDurationMs - transitionDurationMs &&
@@ -382,41 +379,126 @@ export function ReelExportDialog({
               : 0;
 
             if (currentImg && currentImg instanceof HTMLImageElement) {
+              const currentW = currentImg.width || width;
+              const currentH = currentImg.height || height;
+              const isVerticalFull = currentH >= height;
+              const currentY = isVerticalFull ? 0 : Math.round((height - currentH) / 2);
+
+              const nextH = nextImg ? nextImg.height || height : height;
+              const nextY = nextH >= height ? 0 : Math.round((height - nextH) / 2);
+
+              // 1. Ambient Background (Smooth blurred glow if slide is not native 9:16)
+              if (!isVerticalFull) {
+                ctx.save();
+                ctx.fillStyle = "#0A0A0F";
+                ctx.fillRect(0, 0, width, height);
+
+                ctx.filter = "blur(50px) brightness(0.35) saturate(1.4)";
+                const bgScale = Math.max(width / currentW, height / currentH) * 1.15;
+                const bgW = currentW * bgScale;
+                const bgH = currentH * bgScale;
+                const bgX = (width - bgW) / 2;
+                const bgY = (height - bgH) / 2;
+
+                if (isTransitioning && nextImg && nextImg instanceof HTMLImageElement) {
+                  if (transition === "slide") {
+                    const ease = 0.5 - Math.cos(transitionProgress * Math.PI) / 2;
+                    const bgOffset = ease * width;
+                    ctx.drawImage(currentImg, bgX - bgOffset, bgY, bgW, bgH);
+                    ctx.drawImage(nextImg, bgX + (width - bgOffset), bgY, bgW, bgH);
+                  } else {
+                    ctx.globalAlpha = 1;
+                    ctx.drawImage(currentImg, bgX, bgY, bgW, bgH);
+                    ctx.globalAlpha = transitionProgress;
+                    ctx.drawImage(nextImg, bgX, bgY, bgW, bgH);
+                  }
+                } else {
+                  ctx.drawImage(currentImg, bgX, bgY, bgW, bgH);
+                }
+                ctx.restore();
+
+                // Subtle dark overlay to keep center content ultra-readable
+                ctx.fillStyle = "rgba(10, 10, 15, 0.35)";
+                ctx.fillRect(0, 0, width, height);
+              } else {
+                ctx.fillStyle = "#0A0A0F";
+                ctx.fillRect(0, 0, width, height);
+              }
+
+              // 2. Crisp Centered Card with Easing & Shadow
+              ctx.save();
+              if (!isVerticalFull) {
+                ctx.shadowColor = "rgba(0, 0, 0, 0.75)";
+                ctx.shadowBlur = 45;
+                ctx.shadowOffsetY = 15;
+              }
+
               if (transition === "fade") {
-                // Draw current slide
                 ctx.globalAlpha = 1;
-                ctx.drawImage(currentImg, 0, 0, width, height);
+                ctx.drawImage(currentImg, 0, currentY, width, currentH);
 
                 if (isTransitioning && nextImg && nextImg instanceof HTMLImageElement) {
                   ctx.globalAlpha = transitionProgress;
-                  ctx.drawImage(nextImg, 0, 0, width, height);
-                  ctx.globalAlpha = 1;
+                  ctx.drawImage(nextImg, 0, nextY, width, nextH);
                 }
               } else if (transition === "slide") {
                 const ease = 0.5 - Math.cos(transitionProgress * Math.PI) / 2;
                 const offset = isTransitioning ? ease * width : 0;
 
-                ctx.drawImage(currentImg, -offset, 0, width, height);
+                ctx.drawImage(currentImg, -offset, currentY, width, currentH);
                 if (isTransitioning && nextImg && nextImg instanceof HTMLImageElement) {
-                  ctx.drawImage(nextImg, width - offset, 0, width, height);
+                  ctx.drawImage(nextImg, width - offset, nextY, width, nextH);
                 }
               } else {
                 // Zoom (Ken Burns)
-                const zoomScale = 1.0 + (timeIntoSlide / slideDurationMs) * 0.05;
+                const zoomScale = 1.0 + (timeIntoSlide / slideDurationMs) * 0.04;
                 const zw = width * zoomScale;
-                const zh = height * zoomScale;
+                const zh = currentH * zoomScale;
                 const zx = (width - zw) / 2;
-                const zy = (height - zh) / 2;
+                const zy = currentY + (currentH - zh) / 2;
 
                 ctx.globalAlpha = 1;
                 ctx.drawImage(currentImg, zx, zy, zw, zh);
 
                 if (isTransitioning && nextImg && nextImg instanceof HTMLImageElement) {
                   ctx.globalAlpha = transitionProgress;
-                  ctx.drawImage(nextImg, 0, 0, width, height);
-                  ctx.globalAlpha = 1;
+                  ctx.drawImage(nextImg, 0, nextY, width, nextH);
                 }
               }
+              ctx.restore();
+
+              // 3. Instagram Stories / TikTok Segmented Progress Indicator at Top
+              const barMargin = 32;
+              const barTop = 36;
+              const barHeight = 4;
+              const barSpacing = 8;
+              const totalBarWidth = width - barMargin * 2;
+              const segWidth = (totalBarWidth - (totalSlides - 1) * barSpacing) / totalSlides;
+
+              ctx.save();
+              for (let i = 0; i < totalSlides; i++) {
+                const segX = barMargin + i * (segWidth + barSpacing);
+                // Unfilled track
+                ctx.fillStyle = "rgba(255, 255, 255, 0.22)";
+                ctx.beginPath();
+                ctx.roundRect(segX, barTop, segWidth, barHeight, 2);
+                ctx.fill();
+
+                // Filled track
+                if (i < slideIndex) {
+                  ctx.fillStyle = "#22D3EE";
+                  ctx.beginPath();
+                  ctx.roundRect(segX, barTop, segWidth, barHeight, 2);
+                  ctx.fill();
+                } else if (i === slideIndex) {
+                  const fillP = Math.min(1, Math.max(0, timeIntoSlide / slideDurationMs));
+                  ctx.fillStyle = "#22D3EE";
+                  ctx.beginPath();
+                  ctx.roundRect(segX, barTop, segWidth * fillP, barHeight, 2);
+                  ctx.fill();
+                }
+              }
+              ctx.restore();
             }
 
             animFrameId = requestAnimationFrame(renderFrame);
