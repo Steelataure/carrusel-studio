@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   Film,
   Download,
@@ -37,6 +37,8 @@ export function ReelExportDialog({
   const [transition, setTransition] = useState<TransitionType>("fade");
   const [selectedTrack, setSelectedTrack] = useState<string>("cyberpunk-neon");
   const [isGenerating, setIsGenerating] = useState(false);
+  const [statusText, setStatusText] = useState<string>("");
+  const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [videoBlob, setVideoBlob] = useState<Blob | null>(null);
@@ -54,45 +56,20 @@ export function ReelExportDialog({
     };
   }, [videoUrl]);
 
-  // Convert HTML string to SVG Image for canvas drawing
-  const createSlideImage = useCallback(async (html: string, width: number, height: number): Promise<HTMLImageElement> => {
-    return new Promise((resolve, reject) => {
-      // Inlined SVG foreignObject containing slide HTML and base styles
-      const svg = `
-        <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">
-          <foreignObject width="100%" height="100%">
-            <div xmlns="http://www.w3.org/1999/xhtml" style="width:${width}px;height:${height}px;overflow:hidden;box-sizing:border-box;margin:0;padding:0;background:#0A0A0F;color:#ffffff;font-family:'Space Grotesk',sans-serif;">
-              ${html}
-            </div>
-          </foreignObject>
-        </svg>
-      `;
-
-      const blob = new Blob([svg], { type: "image/svg+xml;charset=utf-8" });
-      const url = URL.createObjectURL(blob);
-      const img = new Image();
-      img.crossOrigin = "anonymous";
-      img.onload = () => {
-        URL.revokeObjectURL(url);
-        resolve(img);
-      };
-      img.onerror = () => {
-        URL.revokeObjectURL(url);
-        reject(new Error("Failed to render slide to image"));
-      };
-      img.src = url;
-    });
-  }, []);
-
   const handleGenerateReel = async () => {
     if (slides.length === 0 || isGenerating) return;
 
     setIsGenerating(true);
-    setProgress(0);
+    setError(null);
+    setProgress(5);
+    setStatusText("Rendu des slides HD...");
     if (videoUrl) {
       URL.revokeObjectURL(videoUrl);
       setVideoUrl(null);
     }
+
+    let recorder: MediaRecorder | null = null;
+    let animFrameId: number | null = null;
 
     try {
       const width = 1080;
@@ -100,25 +77,59 @@ export function ReelExportDialog({
       const canvas = canvasRef.current || document.createElement("canvas");
       canvas.width = width;
       canvas.height = height;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) throw new Error("Canvas context unavailable");
+      const ctx = canvas.getContext("2d", { alpha: false });
+      if (!ctx) throw new Error("Impossible d'initialiser le Canvas");
 
-      // 1. Preload all slides as Images
-      const loadedImages: HTMLImageElement[] = [];
-      for (let i = 0; i < slides.length; i++) {
-        setProgress(Math.round(((i + 1) / (slides.length * 2)) * 30));
-        const img = await createSlideImage(slides[i].html, width, height);
-        loadedImages.push(img);
+      // 1. Fetch rendered HD PNG frames from server pipeline
+      setProgress(15);
+      setStatusText("Génération des visuels 1080x1920...");
+
+      const framesRes = await fetch(`/api/carousels/${carouselId}/frames`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ratio: "9:16", slides }),
+      });
+
+      if (!framesRes.ok) {
+        const errJson = await framesRes.json().catch(() => ({}));
+        throw new Error(errJson.error || "Échec du rendu des frames");
       }
 
-      // 2. Setup Audio
+      const framesData = await framesRes.json();
+      const frames: { dataUrl: string }[] = framesData.frames || [];
+      if (frames.length === 0) {
+        throw new Error("Aucune image générée");
+      }
+
+      // 2. Load all PNG frames as real HTMLImageElements
+      setStatusText("Chargement des images...");
+      setProgress(35);
+      const loadedImages: HTMLImageElement[] = [];
+
+      for (let i = 0; i < frames.length; i++) {
+        const img = new Image();
+        img.crossOrigin = "anonymous";
+        await new Promise<void>((resolve, reject) => {
+          img.onload = () => resolve();
+          img.onerror = () => reject(new Error(`Impossible de charger l'image ${i + 1}`));
+          img.src = frames[i].dataUrl;
+        });
+        loadedImages.push(img);
+        setProgress(Math.round(35 + ((i + 1) / frames.length) * 15));
+      }
+
+      // 3. Setup Audio
       let audioStreamNode: MediaStreamAudioDestinationNode | null = null;
       if (selectedTrack !== "none" && audioEngine) {
-        audioStreamNode = audioEngine.getMediaStreamDestination();
-        audioEngine.play(selectedTrack);
+        try {
+          audioStreamNode = audioEngine.getMediaStreamDestination();
+          await audioEngine.play(selectedTrack);
+        } catch (audioErr) {
+          console.warn("Audio playback not available:", audioErr);
+        }
       }
 
-      // 3. Setup MediaRecorder
+      // 4. Setup MediaRecorder
       const fps = 30;
       const canvasStream = canvas.captureStream(fps);
       const tracks = [...canvasStream.getVideoTracks()];
@@ -138,7 +149,7 @@ export function ReelExportDialog({
         }
       }
 
-      const recorder = new MediaRecorder(combinedStream, {
+      recorder = new MediaRecorder(combinedStream, {
         mimeType,
         videoBitsPerSecond: 8000000, // 8 Mbps high quality
       });
@@ -149,6 +160,7 @@ export function ReelExportDialog({
       };
 
       const recordPromise = new Promise<Blob>((resolve) => {
+        if (!recorder) return;
         recorder.onstop = () => {
           const finalBlob = new Blob(recordedChunks, { type: mimeType });
           resolve(finalBlob);
@@ -157,7 +169,8 @@ export function ReelExportDialog({
 
       recorder.start(100);
 
-      // 4. Animate through all slides
+      // 5. Animate through all slides
+      setStatusText("Enregistrement de la vidéo...");
       const slideDurationMs = slideDurationSec * 1000;
       const transitionDurationMs = 600; // 0.6s transition
       const totalSlides = loadedImages.length;
@@ -165,82 +178,91 @@ export function ReelExportDialog({
 
       const startTime = performance.now();
 
-      await new Promise<void>((resolveAnim) => {
+      await new Promise<void>((resolveAnim, rejectAnim) => {
         const renderFrame = (now: number) => {
-          const elapsed = now - startTime;
-          if (elapsed >= totalDurationMs) {
-            resolveAnim();
-            return;
+          try {
+            const elapsed = now - startTime;
+            if (elapsed >= totalDurationMs) {
+              resolveAnim();
+              return;
+            }
+
+            const currentProgress = Math.min(99, Math.round(50 + (elapsed / totalDurationMs) * 49));
+            setProgress(currentProgress);
+
+            const slideIndex = Math.min(
+              totalSlides - 1,
+              Math.floor(elapsed / slideDurationMs)
+            );
+            const timeIntoSlide = elapsed - slideIndex * slideDurationMs;
+            const nextIndex = Math.min(totalSlides - 1, slideIndex + 1);
+
+            const currentImg = loadedImages[slideIndex];
+            const nextImg = loadedImages[nextIndex];
+
+            ctx.fillStyle = "#0A0A0F";
+            ctx.fillRect(0, 0, width, height);
+
+            // Transition timing
+            const isTransitioning =
+              timeIntoSlide > slideDurationMs - transitionDurationMs &&
+              slideIndex < totalSlides - 1;
+            const transitionProgress = isTransitioning
+              ? (timeIntoSlide - (slideDurationMs - transitionDurationMs)) / transitionDurationMs
+              : 0;
+
+            if (currentImg && currentImg instanceof HTMLImageElement) {
+              if (transition === "fade") {
+                // Draw current slide
+                ctx.globalAlpha = 1;
+                ctx.drawImage(currentImg, 0, 0, width, height);
+
+                if (isTransitioning && nextImg && nextImg instanceof HTMLImageElement) {
+                  ctx.globalAlpha = transitionProgress;
+                  ctx.drawImage(nextImg, 0, 0, width, height);
+                  ctx.globalAlpha = 1;
+                }
+              } else if (transition === "slide") {
+                const ease = 0.5 - Math.cos(transitionProgress * Math.PI) / 2;
+                const offset = isTransitioning ? ease * width : 0;
+
+                ctx.drawImage(currentImg, -offset, 0, width, height);
+                if (isTransitioning && nextImg && nextImg instanceof HTMLImageElement) {
+                  ctx.drawImage(nextImg, width - offset, 0, width, height);
+                }
+              } else {
+                // Zoom (Ken Burns)
+                const zoomScale = 1.0 + (timeIntoSlide / slideDurationMs) * 0.05;
+                const zw = width * zoomScale;
+                const zh = height * zoomScale;
+                const zx = (width - zw) / 2;
+                const zy = (height - zh) / 2;
+
+                ctx.globalAlpha = 1;
+                ctx.drawImage(currentImg, zx, zy, zw, zh);
+
+                if (isTransitioning && nextImg && nextImg instanceof HTMLImageElement) {
+                  ctx.globalAlpha = transitionProgress;
+                  ctx.drawImage(nextImg, 0, 0, width, height);
+                  ctx.globalAlpha = 1;
+                }
+              }
+            }
+
+            animFrameId = requestAnimationFrame(renderFrame);
+          } catch (err) {
+            rejectAnim(err);
           }
-
-          const currentProgress = Math.min(100, Math.round(30 + (elapsed / totalDurationMs) * 70));
-          setProgress(currentProgress);
-
-          const slideIndex = Math.min(
-            totalSlides - 1,
-            Math.floor(elapsed / slideDurationMs)
-          );
-          const timeIntoSlide = elapsed - slideIndex * slideDurationMs;
-          const nextIndex = Math.min(totalSlides - 1, slideIndex + 1);
-
-          const currentImg = loadedImages[slideIndex];
-          const nextImg = loadedImages[nextIndex];
-
-          ctx.fillStyle = "#0A0A0F";
-          ctx.fillRect(0, 0, width, height);
-
-          // Transition timing
-          const isTransitioning =
-            timeIntoSlide > slideDurationMs - transitionDurationMs &&
-            slideIndex < totalSlides - 1;
-          const transitionProgress = isTransitioning
-            ? (timeIntoSlide - (slideDurationMs - transitionDurationMs)) / transitionDurationMs
-            : 0;
-
-          if (transition === "fade") {
-            // Draw current slide
-            ctx.globalAlpha = 1;
-            ctx.drawImage(currentImg, 0, 0, width, height);
-
-            if (isTransitioning) {
-              ctx.globalAlpha = transitionProgress;
-              ctx.drawImage(nextImg, 0, 0, width, height);
-              ctx.globalAlpha = 1;
-            }
-          } else if (transition === "slide") {
-            const ease = 0.5 - Math.cos(transitionProgress * Math.PI) / 2;
-            const offset = isTransitioning ? ease * width : 0;
-
-            ctx.drawImage(currentImg, -offset, 0, width, height);
-            if (isTransitioning) {
-              ctx.drawImage(nextImg, width - offset, 0, width, height);
-            }
-          } else {
-            // Zoom (Ken Burns)
-            const zoomScale = 1.0 + (timeIntoSlide / slideDurationMs) * 0.05;
-            const zw = width * zoomScale;
-            const zh = height * zoomScale;
-            const zx = (width - zw) / 2;
-            const zy = (height - zh) / 2;
-
-            ctx.globalAlpha = 1;
-            ctx.drawImage(currentImg, zx, zy, zw, zh);
-
-            if (isTransitioning) {
-              ctx.globalAlpha = transitionProgress;
-              ctx.drawImage(nextImg, 0, 0, width, height);
-              ctx.globalAlpha = 1;
-            }
-          }
-
-          requestAnimationFrame(renderFrame);
         };
 
-        requestAnimationFrame(renderFrame);
+        animFrameId = requestAnimationFrame(renderFrame);
       });
 
-      // Stop recorder and audio
-      recorder.stop();
+      // 6. Stop recorder and audio
+      setStatusText("Finalisation...");
+      if (recorder.state === "recording") {
+        recorder.stop();
+      }
       if (audioEngine) {
         audioEngine.stop();
       }
@@ -250,8 +272,15 @@ export function ReelExportDialog({
       setVideoBlob(blob);
       setVideoUrl(url);
       setProgress(100);
+      setStatusText("Prêt !");
     } catch (err) {
       console.error("Reel generation failed:", err);
+      const errMsg = err instanceof Error ? err.message : "Erreur lors de la génération de la vidéo";
+      setError(errMsg);
+      if (animFrameId) cancelAnimationFrame(animFrameId);
+      if (recorder && recorder.state === "recording") {
+        try { recorder.stop(); } catch {}
+      }
       if (audioEngine) audioEngine.stop();
     } finally {
       setIsGenerating(false);
@@ -416,7 +445,13 @@ export function ReelExportDialog({
             </div>
 
             {/* Generate Action Button */}
-            <div className="pt-2">
+            <div className="pt-2 space-y-2">
+              {error && (
+                <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-xs text-red-400">
+                  <span className="font-semibold">Erreur :</span> {error}
+                </div>
+              )}
+
               <Button
                 variant="accent"
                 onClick={handleGenerateReel}
@@ -426,7 +461,7 @@ export function ReelExportDialog({
                 {isGenerating ? (
                   <>
                     <Sparkles className="h-4 w-4 animate-spin" />
-                    <span>Génération en cours... ({progress}%)</span>
+                    <span>{statusText || "Génération en cours..."} ({progress}%)</span>
                   </>
                 ) : (
                   <>
@@ -437,7 +472,7 @@ export function ReelExportDialog({
               </Button>
 
               {isGenerating && (
-                <div className="w-full bg-muted rounded-full h-1.5 mt-2 overflow-hidden">
+                <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
                   <div
                     className="bg-accent h-full transition-all duration-150"
                     style={{ width: `${progress}%` }}
