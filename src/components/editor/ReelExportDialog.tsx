@@ -11,6 +11,7 @@ import {
   Check,
   X,
   Sliders,
+  VolumeX,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { audioEngine, CURATED_TRACKS } from "@/lib/audio-engine";
@@ -36,6 +37,7 @@ export function ReelExportDialog({
   const [slideDurationSec, setSlideDurationSec] = useState(3);
   const [transition, setTransition] = useState<TransitionType>("fade");
   const [selectedTrack, setSelectedTrack] = useState<string>("cyberpunk-neon");
+  const [playingPreviewTrack, setPlayingPreviewTrack] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [statusText, setStatusText] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
@@ -56,8 +58,40 @@ export function ReelExportDialog({
     };
   }, [videoUrl]);
 
+  // Stop audio playback when modal closes or unmounts
+  useEffect(() => {
+    if (!open) {
+      if (audioEngine) audioEngine.stop();
+      setPlayingPreviewTrack(null);
+    }
+  }, [open]);
+
+  useEffect(() => {
+    return () => {
+      if (audioEngine) audioEngine.stop();
+    };
+  }, []);
+
+  const toggleTrackPreview = (trackId: string, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    setSelectedTrack(trackId);
+    if (!audioEngine) return;
+
+    if (playingPreviewTrack === trackId) {
+      audioEngine.stop();
+      setPlayingPreviewTrack(null);
+    } else {
+      audioEngine.play(trackId);
+      setPlayingPreviewTrack(trackId);
+    }
+  };
+
   const handleGenerateReel = async () => {
     if (slides.length === 0 || isGenerating) return;
+
+    // Stop any ongoing preview before starting generation
+    if (audioEngine) audioEngine.stop();
+    setPlayingPreviewTrack(null);
 
     setIsGenerating(true);
     setError(null);
@@ -373,12 +407,59 @@ export function ReelExportDialog({
               </p>
             </div>
 
-            {/* Transition Style */}
-            <div className="space-y-2">
-              <label className="text-xs font-semibold flex items-center gap-1.5 text-foreground">
-                <Sliders className="h-3.5 w-3.5 text-accent" />
-                <span>Transition entre slides</span>
-              </label>
+            {/* Transition Style with Live Preview */}
+            <div className="space-y-2.5">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-semibold flex items-center gap-1.5 text-foreground">
+                  <Sliders className="h-3.5 w-3.5 text-accent" />
+                  <span>Transition entre slides</span>
+                </label>
+                <span className="text-[11px] font-mono text-accent">
+                  {transition === "fade" ? "Fondu doux" : transition === "slide" ? "Glissement" : "Zoom lent"}
+                </span>
+              </div>
+
+              {/* Live Interactive Transition Demo Screen */}
+              <div className="relative h-18 w-full rounded-xl bg-black/50 border border-border/80 overflow-hidden flex items-center justify-between px-3.5 py-2 shadow-inner">
+                <div className="min-w-0 pr-3">
+                  <p className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                    <span className="h-1.5 w-1.5 rounded-full bg-accent animate-pulse" />
+                    <span>Aperçu de la transition</span>
+                  </p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-1">
+                    {transition === "fade" && "Crossfade fluide : fondu enchaîné subtil et continu entre chaque slide."}
+                    {transition === "slide" && "Push horizontal : glissement latéral cinématographique dynamique."}
+                    {transition === "zoom" && "Effet Ken Burns : grossissement immersif et élégant."}
+                  </p>
+                </div>
+
+                {/* Mini screen mockup */}
+                <div className="relative w-11 h-14 rounded-md overflow-hidden border border-white/20 bg-slate-950 shrink-0 shadow-md">
+                  <div
+                    className={`absolute inset-0 bg-gradient-to-br from-indigo-900 via-indigo-950 to-slate-950 p-1 flex flex-col justify-between text-indigo-300 font-mono text-[7px] font-bold ${
+                      transition === "slide" ? "reel-demo-slide-a" : ""
+                    }`}
+                  >
+                    <div className="h-1 w-3 bg-indigo-400/60 rounded-xs" />
+                    <span className="text-right opacity-70">#01</span>
+                  </div>
+
+                  <div
+                    className={`absolute inset-0 bg-gradient-to-br from-emerald-900 via-emerald-950 to-slate-950 p-1 flex flex-col justify-between text-emerald-300 font-mono text-[7px] font-bold ${
+                      transition === "fade"
+                        ? "reel-demo-fade-b"
+                        : transition === "slide"
+                        ? "reel-demo-slide-b"
+                        : "reel-demo-zoom-b"
+                    }`}
+                  >
+                    <div className="h-1 w-3 bg-emerald-400/60 rounded-xs" />
+                    <span className="text-right opacity-70">#02</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* 3 Transition Buttons */}
               <div className="grid grid-cols-3 gap-2">
                 {[
                   { id: "fade", label: "Fondu doux", desc: "Crossfade fluide" },
@@ -387,11 +468,12 @@ export function ReelExportDialog({
                 ].map((t) => (
                   <button
                     key={t.id}
+                    type="button"
                     onClick={() => setTransition(t.id as TransitionType)}
                     className={`p-2.5 rounded-lg border text-left transition-all ${
                       transition === t.id
                         ? "border-accent bg-accent/10 text-accent font-semibold shadow-xs"
-                        : "border-border text-muted-foreground hover:border-accent/40"
+                        : "border-border text-muted-foreground hover:border-accent/40 bg-surface/30 hover:bg-surface"
                     }`}
                   >
                     <p className="text-xs font-medium">{t.label}</p>
@@ -401,44 +483,121 @@ export function ReelExportDialog({
               </div>
             </div>
 
-            {/* Soundscape Track */}
+            {/* Soundscape Track with Live Preview Player */}
             <div className="space-y-2">
-              <label className="text-xs font-semibold flex items-center gap-1.5 text-foreground">
-                <Music className="h-3.5 w-3.5 text-accent" />
-                <span>Musique d&apos;ambiance intégrée</span>
-              </label>
-              <div className="space-y-1.5">
-                {CURATED_TRACKS.map((track) => (
-                  <div
-                    key={track.id}
-                    onClick={() => setSelectedTrack(track.id)}
-                    className={`p-2.5 rounded-lg border cursor-pointer transition-all flex items-center justify-between ${
-                      selectedTrack === track.id
-                        ? "border-accent bg-accent/10 text-accent font-medium shadow-xs"
-                        : "border-border text-muted-foreground hover:border-accent/40"
-                    }`}
-                  >
-                    <div>
-                      <p className="text-xs font-medium">{track.name}</p>
-                      <p className="text-[10px] text-muted-foreground">{track.genre} • {track.vibe}</p>
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-semibold flex items-center gap-1.5 text-foreground">
+                  <Music className="h-3.5 w-3.5 text-accent" />
+                  <span>Musique d&apos;ambiance intégrée</span>
+                </label>
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-accent/10 text-accent font-mono">
+                  {CURATED_TRACKS.length} styles • 100% libre de droit
+                </span>
+              </div>
+
+              <div className="max-h-64 overflow-y-auto space-y-2 pr-1 rounded-xl">
+                {CURATED_TRACKS.map((track) => {
+                  const isCurrent = selectedTrack === track.id;
+                  const isPlaying = playingPreviewTrack === track.id;
+
+                  return (
+                    <div
+                      key={track.id}
+                      onClick={() => {
+                        setSelectedTrack(track.id);
+                      }}
+                      className={`p-2.5 rounded-xl border cursor-pointer transition-all flex items-center justify-between gap-2.5 ${
+                        isCurrent
+                          ? "border-accent bg-accent/10 shadow-xs"
+                          : "border-border/80 hover:border-accent/40 bg-surface/30 hover:bg-surface/60"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        {/* Play/Stop Preview Button */}
+                        <button
+                          type="button"
+                          onClick={(e) => toggleTrackPreview(track.id, e)}
+                          className={`h-8 w-8 rounded-lg flex items-center justify-center shrink-0 transition-all ${
+                            isPlaying
+                              ? "bg-accent text-accent-foreground shadow-md scale-105"
+                              : "bg-muted text-muted-foreground hover:bg-accent/20 hover:text-accent border border-border/60"
+                          }`}
+                          title={isPlaying ? "Arrêter l'écoute" : "Écouter l'extrait audio"}
+                        >
+                          {isPlaying ? (
+                            <VolumeX className="h-3.5 w-3.5" />
+                          ) : (
+                            <Play className="h-3.5 w-3.5 fill-current ml-0.5" />
+                          )}
+                        </button>
+
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <p className="text-xs font-semibold text-foreground truncate">
+                              {track.name}
+                            </p>
+                            <span className="text-[9px] px-1.5 py-0.2 rounded bg-muted text-muted-foreground font-mono">
+                              {track.bpm} BPM
+                            </span>
+                            <span className="text-[9px] px-1.5 py-0.2 rounded bg-accent/15 text-accent font-medium">
+                              {track.genre}
+                            </span>
+                          </div>
+                          <p className="text-[10px] text-muted-foreground truncate mt-0.5">
+                            {track.vibe}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        {isPlaying && (
+                          <div className="flex items-end gap-0.5 h-3 px-1.5 py-0.5 bg-accent/20 rounded-full">
+                            <span className="w-0.5 bg-accent rounded-full animate-bounce h-full" />
+                            <span className="w-0.5 bg-accent rounded-full animate-bounce h-2/3 [animation-delay:150ms]" />
+                            <span className="w-0.5 bg-accent rounded-full animate-bounce h-4/5 [animation-delay:300ms]" />
+                          </div>
+                        )}
+                        {isCurrent ? (
+                          <div className="h-4 w-4 rounded-full bg-accent text-accent-foreground flex items-center justify-center">
+                            <Check className="h-2.5 w-2.5 stroke-[3]" />
+                          </div>
+                        ) : (
+                          <div className="h-4 w-4 rounded-full border border-border/80" />
+                        )}
+                      </div>
                     </div>
-                    {selectedTrack === track.id && (
-                      <Check className="h-4 w-4 text-accent" />
-                    )}
-                  </div>
-                ))}
+                  );
+                })}
 
                 <div
-                  onClick={() => setSelectedTrack("none")}
-                  className={`p-2.5 rounded-lg border cursor-pointer transition-all flex items-center justify-between ${
+                  onClick={() => {
+                    setSelectedTrack("none");
+                    if (audioEngine) audioEngine.stop();
+                    setPlayingPreviewTrack(null);
+                  }}
+                  className={`p-2.5 rounded-xl border cursor-pointer transition-all flex items-center justify-between gap-2.5 ${
                     selectedTrack === "none"
-                      ? "border-accent bg-accent/10 text-accent font-medium shadow-xs"
-                      : "border-border text-muted-foreground hover:border-accent/40"
+                      ? "border-accent bg-accent/10 shadow-xs"
+                      : "border-border/80 hover:border-accent/40 bg-surface/30 hover:bg-surface/60"
                   }`}
                 >
-                  <p className="text-xs">Sans musique (audio muet)</p>
-                  {selectedTrack === "none" && (
-                    <Check className="h-4 w-4 text-accent" />
+                  <div className="flex items-center gap-2.5">
+                    <div className="h-8 w-8 rounded-lg bg-muted/40 border border-border/60 flex items-center justify-center text-muted-foreground shrink-0">
+                      <VolumeX className="h-3.5 w-3.5" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-foreground">Sans musique (audio muet)</p>
+                      <p className="text-[10px] text-muted-foreground">
+                        Idéal pour ajouter un son viral trending directement sur Instagram ou TikTok.
+                      </p>
+                    </div>
+                  </div>
+                  {selectedTrack === "none" ? (
+                    <div className="h-4 w-4 rounded-full bg-accent text-accent-foreground flex items-center justify-center shrink-0">
+                      <Check className="h-2.5 w-2.5 stroke-[3]" />
+                    </div>
+                  ) : (
+                    <div className="h-4 w-4 rounded-full border border-border/80 shrink-0" />
                   )}
                 </div>
               </div>
@@ -564,6 +723,46 @@ export function ReelExportDialog({
           </div>
         </div>
       </div>
+
+      <style
+        dangerouslySetInnerHTML={{
+          __html: `
+            @keyframes reelDemoFade {
+              0%, 30% { opacity: 0; }
+              50%, 80% { opacity: 1; }
+              100% { opacity: 0; }
+            }
+            @keyframes reelDemoSlideA {
+              0%, 30% { transform: translateX(0%); }
+              50%, 80% { transform: translateX(-100%); }
+              100% { transform: translateX(0%); }
+            }
+            @keyframes reelDemoSlideB {
+              0%, 30% { transform: translateX(100%); }
+              50%, 80% { transform: translateX(0%); }
+              100% { transform: translateX(100%); }
+            }
+            @keyframes reelDemoZoomB {
+              0%, 25% { transform: scale(1); opacity: 0; }
+              35% { opacity: 1; }
+              40%, 85% { transform: scale(1.18); opacity: 1; }
+              95%, 100% { transform: scale(1); opacity: 0; }
+            }
+            .reel-demo-fade-b {
+              animation: reelDemoFade 3s infinite ease-in-out;
+            }
+            .reel-demo-slide-a {
+              animation: reelDemoSlideA 3s infinite ease-in-out;
+            }
+            .reel-demo-slide-b {
+              animation: reelDemoSlideB 3s infinite ease-in-out;
+            }
+            .reel-demo-zoom-b {
+              animation: reelDemoZoomB 3s infinite ease-in-out;
+            }
+          `,
+        }}
+      />
     </div>
   );
 }
