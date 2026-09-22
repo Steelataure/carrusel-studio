@@ -28,6 +28,7 @@ export interface Carousel {
   publishedAt?: string | null;
   caption?: string;
   hashtags?: string[];
+  alternativeTitles?: string[];
   chatSessionId: string | null;
   isTemplate: boolean;
   tags: string[];

@@ -408,6 +408,7 @@ export default function CarouselEditorPage({ params }: PageProps) {
           <CaptionPanel
             caption={carousel.caption}
             hashtags={carousel.hashtags}
+            alternativeTitles={carousel.alternativeTitles}
           />
         </div>
       </div>
