@@ -12,6 +12,9 @@ import {
   X,
   Sliders,
   VolumeX,
+  Upload,
+  Trash2,
+  TrendingUp,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { audioEngine, CURATED_TRACKS } from "@/lib/audio-engine";
@@ -36,8 +39,16 @@ export function ReelExportDialog({
 }: ReelExportDialogProps) {
   const [slideDurationSec, setSlideDurationSec] = useState(3);
   const [transition, setTransition] = useState<TransitionType>("fade");
-  const [selectedTrack, setSelectedTrack] = useState<string>("cyberpunk-neon");
+  const [selectedTrack, setSelectedTrack] = useState<string>("phonk-energy-808");
   const [playingPreviewTrack, setPlayingPreviewTrack] = useState<string | null>(null);
+
+  // Custom Audio File State
+  const [customAudioFile, setCustomAudioFile] = useState<File | null>(null);
+  const [customAudioUrl, setCustomAudioUrl] = useState<string | null>(null);
+  const [isPlayingCustom, setIsPlayingCustom] = useState(false);
+  const customAudioInputRef = useRef<HTMLInputElement | null>(null);
+  const customPreviewAudioRef = useRef<HTMLAudioElement | null>(null);
+
   const [isGenerating, setIsGenerating] = useState(false);
   const [statusText, setStatusText] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
@@ -58,23 +69,40 @@ export function ReelExportDialog({
     };
   }, [videoUrl]);
 
+  // Clean up custom audio URL
+  useEffect(() => {
+    return () => {
+      if (customAudioUrl) {
+        URL.revokeObjectURL(customAudioUrl);
+      }
+    };
+  }, [customAudioUrl]);
+
   // Stop audio playback when modal closes or unmounts
   useEffect(() => {
     if (!open) {
       if (audioEngine) audioEngine.stop();
+      if (customPreviewAudioRef.current) customPreviewAudioRef.current.pause();
+      setIsPlayingCustom(false);
       setPlayingPreviewTrack(null);
     }
   }, [open]);
 
   useEffect(() => {
+    const previewEl = customPreviewAudioRef.current;
     return () => {
       if (audioEngine) audioEngine.stop();
+      if (previewEl) previewEl.pause();
     };
   }, []);
 
   const toggleTrackPreview = (trackId: string, e?: React.MouseEvent) => {
     e?.stopPropagation();
     setSelectedTrack(trackId);
+    if (customPreviewAudioRef.current) {
+      customPreviewAudioRef.current.pause();
+      setIsPlayingCustom(false);
+    }
     if (!audioEngine) return;
 
     if (playingPreviewTrack === trackId) {
@@ -86,11 +114,54 @@ export function ReelExportDialog({
     }
   };
 
+  const handleCustomAudioUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (customAudioUrl) URL.revokeObjectURL(customAudioUrl);
+    const url = URL.createObjectURL(file);
+    setCustomAudioFile(file);
+    setCustomAudioUrl(url);
+    setSelectedTrack("custom");
+    if (audioEngine) audioEngine.stop();
+    setPlayingPreviewTrack(null);
+  };
+
+  const toggleCustomPreview = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    setSelectedTrack("custom");
+    if (!customPreviewAudioRef.current || !customAudioUrl) return;
+
+    if (isPlayingCustom) {
+      customPreviewAudioRef.current.pause();
+      setIsPlayingCustom(false);
+    } else {
+      if (audioEngine) audioEngine.stop();
+      setPlayingPreviewTrack(null);
+      customPreviewAudioRef.current.currentTime = 0;
+      customPreviewAudioRef.current
+        .play()
+        .then(() => setIsPlayingCustom(true))
+        .catch(() => {});
+    }
+  };
+
+  const removeCustomAudio = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (customPreviewAudioRef.current) customPreviewAudioRef.current.pause();
+    setIsPlayingCustom(false);
+    if (customAudioUrl) URL.revokeObjectURL(customAudioUrl);
+    setCustomAudioUrl(null);
+    setCustomAudioFile(null);
+    setSelectedTrack("phonk-energy-808");
+  };
+
   const handleGenerateReel = async () => {
     if (slides.length === 0 || isGenerating) return;
 
     // Stop any ongoing preview before starting generation
     if (audioEngine) audioEngine.stop();
+    if (customPreviewAudioRef.current) customPreviewAudioRef.current.pause();
+    setIsPlayingCustom(false);
     setPlayingPreviewTrack(null);
 
     setIsGenerating(true);
@@ -104,6 +175,8 @@ export function ReelExportDialog({
 
     let recorder: MediaRecorder | null = null;
     let animFrameId: number | null = null;
+    let customAudioPlaybackEl: HTMLAudioElement | null = null;
+    let customAudioCtx: AudioContext | null = null;
 
     try {
       const width = 1080;
@@ -152,9 +225,27 @@ export function ReelExportDialog({
         setProgress(Math.round(35 + ((i + 1) / frames.length) * 15));
       }
 
-      // 3. Setup Audio
+      // 3. Setup Audio (Custom MP3, Built-in Punchy Beat, or Muted)
       let audioStreamNode: MediaStreamAudioDestinationNode | null = null;
-      if (selectedTrack !== "none" && audioEngine) {
+
+      if (selectedTrack === "custom" && customAudioUrl) {
+        try {
+          customAudioPlaybackEl = new Audio(customAudioUrl);
+          customAudioPlaybackEl.loop = true;
+          const AudioContextClass =
+            window.AudioContext ||
+            (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+          customAudioCtx = new AudioContextClass();
+          if (customAudioCtx.state === "suspended") await customAudioCtx.resume();
+          const source = customAudioCtx.createMediaElementSource(customAudioPlaybackEl);
+          const dest = customAudioCtx.createMediaStreamDestination();
+          source.connect(dest);
+          audioStreamNode = dest;
+          await customAudioPlaybackEl.play();
+        } catch (audioErr) {
+          console.warn("Custom audio streaming failed:", audioErr);
+        }
+      } else if (selectedTrack !== "none" && audioEngine) {
         try {
           audioStreamNode = audioEngine.getMediaStreamDestination();
           await audioEngine.play(selectedTrack);
@@ -300,6 +391,14 @@ export function ReelExportDialog({
       if (audioEngine) {
         audioEngine.stop();
       }
+      if (customAudioPlaybackEl) {
+        customAudioPlaybackEl.pause();
+        customAudioPlaybackEl = null;
+      }
+      if (customAudioCtx) {
+        customAudioCtx.close().catch(() => {});
+        customAudioCtx = null;
+      }
 
       const blob = await recordPromise;
       const url = URL.createObjectURL(blob);
@@ -316,6 +415,12 @@ export function ReelExportDialog({
         try { recorder.stop(); } catch {}
       }
       if (audioEngine) audioEngine.stop();
+      if (customAudioPlaybackEl) {
+        try { customAudioPlaybackEl.pause(); } catch {}
+      }
+      if (customAudioCtx) {
+        try { customAudioCtx.close().catch(() => {}); } catch {}
+      }
     } finally {
       setIsGenerating(false);
     }
@@ -483,122 +588,258 @@ export function ReelExportDialog({
               </div>
             </div>
 
-            {/* Soundscape Track with Live Preview Player */}
-            <div className="space-y-2">
+            {/* Audio / Music Selection */}
+            <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <label className="text-xs font-semibold flex items-center gap-1.5 text-foreground">
                   <Music className="h-3.5 w-3.5 text-accent" />
-                  <span>Musique d&apos;ambiance intégrée</span>
+                  <span>Piste Audio & Musique</span>
                 </label>
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-accent/10 text-accent font-mono">
-                  {CURATED_TRACKS.length} styles • 100% libre de droit
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 font-medium">
+                  Libre de droits • Instagram Ready
                 </span>
               </div>
 
-              <div className="max-h-64 overflow-y-auto space-y-2 pr-1 rounded-xl">
-                {CURATED_TRACKS.map((track) => {
-                  const isCurrent = selectedTrack === track.id;
-                  const isPlaying = playingPreviewTrack === track.id;
-
-                  return (
-                    <div
-                      key={track.id}
-                      onClick={() => {
-                        setSelectedTrack(track.id);
-                      }}
-                      className={`p-2.5 rounded-xl border cursor-pointer transition-all flex items-center justify-between gap-2.5 ${
-                        isCurrent
-                          ? "border-accent bg-accent/10 shadow-xs"
-                          : "border-border/80 hover:border-accent/40 bg-surface/30 hover:bg-surface/60"
-                      }`}
-                    >
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        {/* Play/Stop Preview Button */}
-                        <button
-                          type="button"
-                          onClick={(e) => toggleTrackPreview(track.id, e)}
-                          className={`h-8 w-8 rounded-lg flex items-center justify-center shrink-0 transition-all ${
-                            isPlaying
-                              ? "bg-accent text-accent-foreground shadow-md scale-105"
-                              : "bg-muted text-muted-foreground hover:bg-accent/20 hover:text-accent border border-border/60"
-                          }`}
-                          title={isPlaying ? "Arrêter l'écoute" : "Écouter l'extrait audio"}
-                        >
-                          {isPlaying ? (
-                            <VolumeX className="h-3.5 w-3.5" />
-                          ) : (
-                            <Play className="h-3.5 w-3.5 fill-current ml-0.5" />
-                          )}
-                        </button>
-
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <p className="text-xs font-semibold text-foreground truncate">
-                              {track.name}
-                            </p>
-                            <span className="text-[9px] px-1.5 py-0.2 rounded bg-muted text-muted-foreground font-mono">
-                              {track.bpm} BPM
-                            </span>
-                            <span className="text-[9px] px-1.5 py-0.2 rounded bg-accent/15 text-accent font-medium">
-                              {track.genre}
-                            </span>
-                          </div>
-                          <p className="text-[10px] text-muted-foreground truncate mt-0.5">
-                            {track.vibe}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-2 shrink-0">
-                        {isPlaying && (
-                          <div className="flex items-end gap-0.5 h-3 px-1.5 py-0.5 bg-accent/20 rounded-full">
-                            <span className="w-0.5 bg-accent rounded-full animate-bounce h-full" />
-                            <span className="w-0.5 bg-accent rounded-full animate-bounce h-2/3 [animation-delay:150ms]" />
-                            <span className="w-0.5 bg-accent rounded-full animate-bounce h-4/5 [animation-delay:300ms]" />
-                          </div>
-                        )}
-                        {isCurrent ? (
-                          <div className="h-4 w-4 rounded-full bg-accent text-accent-foreground flex items-center justify-center">
-                            <Check className="h-2.5 w-2.5 stroke-[3]" />
-                          </div>
-                        ) : (
-                          <div className="h-4 w-4 rounded-full border border-border/80" />
-                        )}
-                      </div>
+              {/* 1. BEST PRACTICE HIGHLIGHT: Trending Instagram Audio (Muted Export) */}
+              <div
+                onClick={() => {
+                  setSelectedTrack("none");
+                  if (audioEngine) audioEngine.stop();
+                  if (customPreviewAudioRef.current) customPreviewAudioRef.current.pause();
+                  setIsPlayingCustom(false);
+                  setPlayingPreviewTrack(null);
+                }}
+                className={`p-3.5 rounded-xl border cursor-pointer transition-all ${
+                  selectedTrack === "none"
+                    ? "border-emerald-500/60 bg-emerald-500/10 shadow-sm"
+                    : "border-border/80 hover:border-emerald-500/40 bg-surface/30 hover:bg-surface/60"
+                }`}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-start gap-3 min-w-0">
+                    <div className="h-8 w-8 rounded-lg bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 flex items-center justify-center shrink-0 mt-0.5">
+                      <TrendingUp className="h-4 w-4" />
                     </div>
-                  );
-                })}
-
-                <div
-                  onClick={() => {
-                    setSelectedTrack("none");
-                    if (audioEngine) audioEngine.stop();
-                    setPlayingPreviewTrack(null);
-                  }}
-                  className={`p-2.5 rounded-xl border cursor-pointer transition-all flex items-center justify-between gap-2.5 ${
-                    selectedTrack === "none"
-                      ? "border-accent bg-accent/10 shadow-xs"
-                      : "border-border/80 hover:border-accent/40 bg-surface/30 hover:bg-surface/60"
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5">
-                    <div className="h-8 w-8 rounded-lg bg-muted/40 border border-border/60 flex items-center justify-center text-muted-foreground shrink-0">
-                      <VolumeX className="h-3.5 w-3.5" />
-                    </div>
-                    <div>
-                      <p className="text-xs font-semibold text-foreground">Sans musique (audio muet)</p>
-                      <p className="text-[10px] text-muted-foreground">
-                        Idéal pour ajouter un son viral trending directement sur Instagram ou TikTok.
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-xs font-bold text-foreground">
+                          Son Tendance Instagram (Export Muet)
+                        </span>
+                        <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-emerald-500/20 text-emerald-400 font-bold uppercase tracking-wider">
+                          ⭐ Secret Viral
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
+                        L&apos;algorithme d&apos;Instagram & TikTok propulse les vidéos qui sélectionnent un son trending directement dans l&apos;application avant de poster. Exportez sans son pour choisir le son n°1 du moment !
                       </p>
                     </div>
                   </div>
-                  {selectedTrack === "none" ? (
-                    <div className="h-4 w-4 rounded-full bg-accent text-accent-foreground flex items-center justify-center shrink-0">
-                      <Check className="h-2.5 w-2.5 stroke-[3]" />
+
+                  <div className="shrink-0 mt-0.5">
+                    {selectedTrack === "none" ? (
+                      <div className="h-5 w-5 rounded-full bg-emerald-500 text-black flex items-center justify-center font-bold">
+                        <Check className="h-3 w-3 stroke-[3]" />
+                      </div>
+                    ) : (
+                      <div className="h-5 w-5 rounded-full border border-border/80" />
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* 2. CUSTOM MP3 UPLOAD */}
+              <div
+                onClick={() => {
+                  if (customAudioUrl) {
+                    setSelectedTrack("custom");
+                    if (audioEngine) audioEngine.stop();
+                    setPlayingPreviewTrack(null);
+                  } else {
+                    customAudioInputRef.current?.click();
+                  }
+                }}
+                className={`p-3.5 rounded-xl border cursor-pointer transition-all ${
+                  selectedTrack === "custom"
+                    ? "border-accent bg-accent/10 shadow-sm"
+                    : "border-border/80 hover:border-accent/40 bg-surface/30 hover:bg-surface/60"
+                }`}
+              >
+                <input
+                  ref={customAudioInputRef}
+                  type="file"
+                  accept="audio/*"
+                  onChange={handleCustomAudioUpload}
+                  className="hidden"
+                />
+                {customAudioUrl && (
+                  <audio
+                    ref={customPreviewAudioRef}
+                    src={customAudioUrl}
+                    onEnded={() => setIsPlayingCustom(false)}
+                    className="hidden"
+                  />
+                )}
+
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    {customAudioUrl ? (
+                      <button
+                        type="button"
+                        onClick={toggleCustomPreview}
+                        className={`h-8 w-8 rounded-lg flex items-center justify-center shrink-0 transition-all ${
+                          isPlayingCustom
+                            ? "bg-accent text-accent-foreground shadow-md scale-105"
+                            : "bg-muted text-muted-foreground hover:bg-accent/20 hover:text-accent border border-border/60"
+                        }`}
+                        title={isPlayingCustom ? "Arrêter l'écoute" : "Écouter votre MP3"}
+                      >
+                        {isPlayingCustom ? (
+                          <VolumeX className="h-3.5 w-3.5" />
+                        ) : (
+                          <Play className="h-3.5 w-3.5 fill-current ml-0.5" />
+                        )}
+                      </button>
+                    ) : (
+                      <div className="h-8 w-8 rounded-lg bg-accent/10 border border-accent/20 flex items-center justify-center text-accent shrink-0">
+                        <Upload className="h-4 w-4" />
+                      </div>
+                    )}
+
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-semibold text-foreground truncate">
+                          {customAudioFile ? customAudioFile.name : "Importer mon propre MP3 / Audio"}
+                        </span>
+                        {customAudioFile && (
+                          <span className="text-[9px] px-1.5 py-0.2 rounded bg-accent/15 text-accent font-medium">
+                            Fichier perso
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
+                        {customAudioFile
+                          ? "Votre musique sera synchronisée et mixée dans le Reel"
+                          : "Glissez ou sélectionnez un MP3, WAV, ou M4A depuis votre PC"}
+                      </p>
                     </div>
-                  ) : (
-                    <div className="h-4 w-4 rounded-full border border-border/80 shrink-0" />
-                  )}
+                  </div>
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    {customAudioUrl ? (
+                      <>
+                        <button
+                          type="button"
+                          onClick={removeCustomAudio}
+                          className="h-7 w-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                          title="Supprimer ce fichier audio"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                        {selectedTrack === "custom" ? (
+                          <div className="h-5 w-5 rounded-full bg-accent text-accent-foreground flex items-center justify-center">
+                            <Check className="h-3 w-3 stroke-[3]" />
+                          </div>
+                        ) : (
+                          <div className="h-5 w-5 rounded-full border border-border/80" />
+                        )}
+                      </>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          customAudioInputRef.current?.click();
+                        }}
+                        className="text-[11px] px-2.5 py-1 rounded-lg border border-border bg-muted/60 hover:bg-muted text-foreground font-medium transition-colors"
+                      >
+                        Parcourir
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* 3. BUILT-IN ENERGETIC PUNCHY BEATS */}
+              <div className="space-y-1.5 pt-1">
+                <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-1">
+                  Beats énergiques rythmés (100% libres de droits)
+                </p>
+
+                <div className="space-y-1.5">
+                  {CURATED_TRACKS.map((track) => {
+                    const isCurrent = selectedTrack === track.id;
+                    const isPlaying = playingPreviewTrack === track.id;
+
+                    return (
+                      <div
+                        key={track.id}
+                        onClick={() => {
+                          setSelectedTrack(track.id);
+                          if (customPreviewAudioRef.current) customPreviewAudioRef.current.pause();
+                          setIsPlayingCustom(false);
+                        }}
+                        className={`p-2.5 rounded-xl border cursor-pointer transition-all flex items-center justify-between gap-2.5 ${
+                          isCurrent
+                            ? "border-accent bg-accent/10 shadow-xs"
+                            : "border-border/80 hover:border-accent/40 bg-surface/30 hover:bg-surface/60"
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          {/* Play/Stop Preview Button */}
+                          <button
+                            type="button"
+                            onClick={(e) => toggleTrackPreview(track.id, e)}
+                            className={`h-8 w-8 rounded-lg flex items-center justify-center shrink-0 transition-all ${
+                              isPlaying
+                                ? "bg-accent text-accent-foreground shadow-md scale-105"
+                                : "bg-muted text-muted-foreground hover:bg-accent/20 hover:text-accent border border-border/60"
+                            }`}
+                            title={isPlaying ? "Arrêter l'écoute" : "Écouter l'extrait audio"}
+                          >
+                            {isPlaying ? (
+                              <VolumeX className="h-3.5 w-3.5" />
+                            ) : (
+                              <Play className="h-3.5 w-3.5 fill-current ml-0.5" />
+                            )}
+                          </button>
+
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <p className="text-xs font-semibold text-foreground truncate">
+                                {track.name}
+                              </p>
+                              <span className="text-[9px] px-1.5 py-0.2 rounded bg-muted text-muted-foreground font-mono">
+                                {track.bpm} BPM
+                              </span>
+                              <span className="text-[9px] px-1.5 py-0.2 rounded bg-accent/15 text-accent font-medium">
+                                {track.genre}
+                              </span>
+                            </div>
+                            <p className="text-[10px] text-muted-foreground truncate mt-0.5">
+                              {track.vibe}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 shrink-0">
+                          {isPlaying && (
+                            <div className="flex items-end gap-0.5 h-3 px-1.5 py-0.5 bg-accent/20 rounded-full">
+                              <span className="w-0.5 bg-accent rounded-full animate-bounce h-full" />
+                              <span className="w-0.5 bg-accent rounded-full animate-bounce h-2/3 [animation-delay:150ms]" />
+                              <span className="w-0.5 bg-accent rounded-full animate-bounce h-4/5 [animation-delay:300ms]" />
+                            </div>
+                          )}
+                          {isCurrent ? (
+                            <div className="h-4 w-4 rounded-full bg-accent text-accent-foreground flex items-center justify-center">
+                              <Check className="h-2.5 w-2.5 stroke-[3]" />
+                            </div>
+                          ) : (
+                            <div className="h-4 w-4 rounded-full border border-border/80" />
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             </div>
