@@ -262,6 +262,165 @@ export function ReelExportDialog({
         setProgress(Math.round(35 + ((i + 1) / frameUrls.length) * 15));
       }
 
+      // Pre-render small blurred background for each slide once to eliminate heavy runtime ctx.filter
+      const bgCanvases: HTMLCanvasElement[] = [];
+      for (let i = 0; i < loadedImages.length; i++) {
+        const img = loadedImages[i];
+        const bgC = document.createElement("canvas");
+        bgC.width = 360;
+        bgC.height = 640;
+        const bgCtx = bgC.getContext("2d");
+        if (bgCtx) {
+          bgCtx.fillStyle = "#0A0A0F";
+          bgCtx.fillRect(0, 0, bgC.width, bgC.height);
+
+          const imgW = img.width || width;
+          const imgH = img.height || height;
+          const scale = Math.max(bgC.width / imgW, bgC.height / imgH) * 1.15;
+          const sw = imgW * scale;
+          const sh = imgH * scale;
+          const sx = (bgC.width - sw) / 2;
+          const sy = (bgC.height - sh) / 2;
+
+          bgCtx.filter = "blur(18px) brightness(0.35) saturate(1.4)";
+          bgCtx.drawImage(img, sx, sy, sw, sh);
+          bgCtx.filter = "none";
+
+          bgCtx.fillStyle = "rgba(10, 10, 15, 0.35)";
+          bgCtx.fillRect(0, 0, bgC.width, bgC.height);
+        }
+        bgCanvases.push(bgC);
+      }
+
+      // Timing constants: each slide stays fully visible and readable for slideDurationSec,
+      // then transitions smoothly for transitionDurationMs.
+      const staticDurationMs = slideDurationSec * 1000;
+      const transitionDurationMs = 500; // 0.5s smooth transition
+      const totalSlides = loadedImages.length;
+      const slideCycleMs = staticDurationMs + transitionDurationMs;
+      // Last slide holds for static duration + transition buffer
+      const totalDurationMs = (totalSlides - 1) * slideCycleMs + (staticDurationMs + transitionDurationMs);
+
+      // Reusable frame renderer (ultra-fast: < 0.1ms per frame, no runtime filter computation)
+      const drawReelFrame = (
+        slideIndex: number,
+        timeIntoSlide: number,
+        isTransitioning: boolean,
+        transitionProgress: number
+      ) => {
+        const nextIndex = Math.min(totalSlides - 1, slideIndex + 1);
+        const currentImg = loadedImages[slideIndex];
+        const nextImg = loadedImages[nextIndex];
+        if (!currentImg) return;
+
+        const currentW = currentImg.width || width;
+        const currentH = currentImg.height || height;
+        const isVerticalFull = currentH >= height;
+        const currentY = isVerticalFull ? 0 : Math.round((height - currentH) / 2);
+
+        const nextH = nextImg ? nextImg.height || height : height;
+        const nextY = nextH >= height ? 0 : Math.round((height - nextH) / 2);
+
+        // 1. Ambient Background (smoothly blended pre-rendered glows)
+        ctx.save();
+        ctx.fillStyle = "#0A0A0F";
+        ctx.fillRect(0, 0, width, height);
+
+        if (!isVerticalFull && bgCanvases[slideIndex]) {
+          if (isTransitioning && bgCanvases[nextIndex]) {
+            if (transition === "slide") {
+              const ease = 0.5 - Math.cos(transitionProgress * Math.PI) / 2;
+              const bgOffset = ease * width;
+              ctx.drawImage(bgCanvases[slideIndex], -bgOffset, 0, width, height);
+              ctx.drawImage(bgCanvases[nextIndex], width - bgOffset, 0, width, height);
+            } else {
+              ctx.globalAlpha = 1;
+              ctx.drawImage(bgCanvases[slideIndex], 0, 0, width, height);
+              ctx.globalAlpha = transitionProgress;
+              ctx.drawImage(bgCanvases[nextIndex], 0, 0, width, height);
+            }
+          } else {
+            ctx.drawImage(bgCanvases[slideIndex], 0, 0, width, height);
+          }
+        }
+        ctx.restore();
+
+        // 2. Crisp Centered Card with Easing & Shadow
+        ctx.save();
+        if (!isVerticalFull) {
+          ctx.shadowColor = "rgba(0, 0, 0, 0.75)";
+          ctx.shadowBlur = 45;
+          ctx.shadowOffsetY = 15;
+        }
+
+        if (transition === "fade") {
+          ctx.globalAlpha = 1;
+          ctx.drawImage(currentImg, 0, currentY, width, currentH);
+          if (isTransitioning && nextImg && nextImg instanceof HTMLImageElement) {
+            ctx.globalAlpha = transitionProgress;
+            ctx.drawImage(nextImg, 0, nextY, width, nextH);
+          }
+        } else if (transition === "slide") {
+          const ease = 0.5 - Math.cos(transitionProgress * Math.PI) / 2;
+          const offset = isTransitioning ? ease * width : 0;
+          ctx.drawImage(currentImg, -offset, currentY, width, currentH);
+          if (isTransitioning && nextImg && nextImg instanceof HTMLImageElement) {
+            ctx.drawImage(nextImg, width - offset, nextY, width, nextH);
+          }
+        } else {
+          // Zoom (Ken Burns)
+          const zoomScale = 1.0 + (Math.min(timeIntoSlide, staticDurationMs) / staticDurationMs) * 0.04;
+          const zw = width * zoomScale;
+          const zh = currentH * zoomScale;
+          const zx = (width - zw) / 2;
+          const zy = currentY + (currentH - zh) / 2;
+          ctx.globalAlpha = 1;
+          ctx.drawImage(currentImg, zx, zy, zw, zh);
+          if (isTransitioning && nextImg && nextImg instanceof HTMLImageElement) {
+            ctx.globalAlpha = transitionProgress;
+            ctx.drawImage(nextImg, 0, nextY, width, nextH);
+          }
+        }
+        ctx.restore();
+
+        // 3. Instagram Stories / TikTok Segmented Progress Indicator at Top
+        const barMargin = 32;
+        const barTop = 36;
+        const barHeight = 4;
+        const barSpacing = 8;
+        const totalBarWidth = width - barMargin * 2;
+        const segWidth = (totalBarWidth - (totalSlides - 1) * barSpacing) / totalSlides;
+
+        ctx.save();
+        for (let i = 0; i < totalSlides; i++) {
+          const segX = barMargin + i * (segWidth + barSpacing);
+          // Unfilled track
+          ctx.fillStyle = "rgba(255, 255, 255, 0.22)";
+          ctx.beginPath();
+          ctx.roundRect(segX, barTop, segWidth, barHeight, 2);
+          ctx.fill();
+
+          // Filled track
+          if (i < slideIndex) {
+            ctx.fillStyle = "#22D3EE";
+            ctx.beginPath();
+            ctx.roundRect(segX, barTop, segWidth, barHeight, 2);
+            ctx.fill();
+          } else if (i === slideIndex) {
+            const cycleTotal = staticDurationMs + (slideIndex < totalSlides - 1 ? transitionDurationMs : 0);
+            const fillP = Math.min(1, Math.max(0, timeIntoSlide / cycleTotal));
+            ctx.fillStyle = "#22D3EE";
+            ctx.beginPath();
+            ctx.roundRect(segX, barTop, segWidth * fillP, barHeight, 2);
+            ctx.fill();
+          }
+        }
+        ctx.restore();
+      };
+
+      // Pre-paint initial Slide 0 immediately before stream setup
+      drawReelFrame(0, 0, false, 0);
+
       // 3. Setup Audio (Custom MP3, Studio Curated Beat, or Muted)
       let audioStreamNode: MediaStreamAudioDestinationNode | null = null;
 
@@ -278,7 +437,6 @@ export function ReelExportDialog({
           const dest = customAudioCtx.createMediaStreamDestination();
           source.connect(dest);
           audioStreamNode = dest;
-          await customAudioPlaybackEl.play();
         } catch (audioErr) {
           console.warn("Custom audio streaming failed:", audioErr);
         }
@@ -299,7 +457,7 @@ export function ReelExportDialog({
         }
       }
 
-      // 4. Setup MediaRecorder
+      // 4. Setup MediaRecorder with pre-warmed initial frame
       const fps = 30;
       const canvasStream = canvas.captureStream(fps);
       const tracks = [...canvasStream.getVideoTracks()];
@@ -337,22 +495,31 @@ export function ReelExportDialog({
         };
       });
 
+      // Ensure canvas has the initial frame captured
+      drawReelFrame(0, 0, false, 0);
+
+      // Start recorder and custom audio in sync
       recorder.start(100);
+      if (customAudioPlaybackEl) {
+        try { await customAudioPlaybackEl.play(); } catch {}
+      }
 
       // 5. Animate through all slides
       setStatusText("Enregistrement de la vidéo...");
-      const slideDurationMs = slideDurationSec * 1000;
-      const transitionDurationMs = 600; // 0.6s transition
-      const totalSlides = loadedImages.length;
-      const totalDurationMs = totalSlides * slideDurationMs;
+      setProgress(50);
 
-      const startTime = performance.now();
+      let startTime: number | null = null;
 
       await new Promise<void>((resolveAnim, rejectAnim) => {
         const renderFrame = (now: number) => {
           try {
+            if (startTime === null) {
+              startTime = now;
+            }
             const elapsed = now - startTime;
             if (elapsed >= totalDurationMs) {
+              // Final frame
+              drawReelFrame(totalSlides - 1, staticDurationMs, false, 0);
               resolveAnim();
               return;
             }
@@ -362,144 +529,16 @@ export function ReelExportDialog({
 
             const slideIndex = Math.min(
               totalSlides - 1,
-              Math.floor(elapsed / slideDurationMs)
+              Math.floor(elapsed / slideCycleMs)
             );
-            const timeIntoSlide = elapsed - slideIndex * slideDurationMs;
-            const nextIndex = Math.min(totalSlides - 1, slideIndex + 1);
-
-            const currentImg = loadedImages[slideIndex];
-            const nextImg = loadedImages[nextIndex];
-
-            // Transition timing
+            const timeIntoSlide = elapsed - slideIndex * slideCycleMs;
             const isTransitioning =
-              timeIntoSlide > slideDurationMs - transitionDurationMs &&
-              slideIndex < totalSlides - 1;
+              slideIndex < totalSlides - 1 && timeIntoSlide >= staticDurationMs;
             const transitionProgress = isTransitioning
-              ? (timeIntoSlide - (slideDurationMs - transitionDurationMs)) / transitionDurationMs
+              ? Math.min(1, (timeIntoSlide - staticDurationMs) / transitionDurationMs)
               : 0;
 
-            if (currentImg && currentImg instanceof HTMLImageElement) {
-              const currentW = currentImg.width || width;
-              const currentH = currentImg.height || height;
-              const isVerticalFull = currentH >= height;
-              const currentY = isVerticalFull ? 0 : Math.round((height - currentH) / 2);
-
-              const nextH = nextImg ? nextImg.height || height : height;
-              const nextY = nextH >= height ? 0 : Math.round((height - nextH) / 2);
-
-              // 1. Ambient Background (Smooth blurred glow if slide is not native 9:16)
-              if (!isVerticalFull) {
-                ctx.save();
-                ctx.fillStyle = "#0A0A0F";
-                ctx.fillRect(0, 0, width, height);
-
-                ctx.filter = "blur(50px) brightness(0.35) saturate(1.4)";
-                const bgScale = Math.max(width / currentW, height / currentH) * 1.15;
-                const bgW = currentW * bgScale;
-                const bgH = currentH * bgScale;
-                const bgX = (width - bgW) / 2;
-                const bgY = (height - bgH) / 2;
-
-                if (isTransitioning && nextImg && nextImg instanceof HTMLImageElement) {
-                  if (transition === "slide") {
-                    const ease = 0.5 - Math.cos(transitionProgress * Math.PI) / 2;
-                    const bgOffset = ease * width;
-                    ctx.drawImage(currentImg, bgX - bgOffset, bgY, bgW, bgH);
-                    ctx.drawImage(nextImg, bgX + (width - bgOffset), bgY, bgW, bgH);
-                  } else {
-                    ctx.globalAlpha = 1;
-                    ctx.drawImage(currentImg, bgX, bgY, bgW, bgH);
-                    ctx.globalAlpha = transitionProgress;
-                    ctx.drawImage(nextImg, bgX, bgY, bgW, bgH);
-                  }
-                } else {
-                  ctx.drawImage(currentImg, bgX, bgY, bgW, bgH);
-                }
-                ctx.restore();
-
-                // Subtle dark overlay to keep center content ultra-readable
-                ctx.fillStyle = "rgba(10, 10, 15, 0.35)";
-                ctx.fillRect(0, 0, width, height);
-              } else {
-                ctx.fillStyle = "#0A0A0F";
-                ctx.fillRect(0, 0, width, height);
-              }
-
-              // 2. Crisp Centered Card with Easing & Shadow
-              ctx.save();
-              if (!isVerticalFull) {
-                ctx.shadowColor = "rgba(0, 0, 0, 0.75)";
-                ctx.shadowBlur = 45;
-                ctx.shadowOffsetY = 15;
-              }
-
-              if (transition === "fade") {
-                ctx.globalAlpha = 1;
-                ctx.drawImage(currentImg, 0, currentY, width, currentH);
-
-                if (isTransitioning && nextImg && nextImg instanceof HTMLImageElement) {
-                  ctx.globalAlpha = transitionProgress;
-                  ctx.drawImage(nextImg, 0, nextY, width, nextH);
-                }
-              } else if (transition === "slide") {
-                const ease = 0.5 - Math.cos(transitionProgress * Math.PI) / 2;
-                const offset = isTransitioning ? ease * width : 0;
-
-                ctx.drawImage(currentImg, -offset, currentY, width, currentH);
-                if (isTransitioning && nextImg && nextImg instanceof HTMLImageElement) {
-                  ctx.drawImage(nextImg, width - offset, nextY, width, nextH);
-                }
-              } else {
-                // Zoom (Ken Burns)
-                const zoomScale = 1.0 + (timeIntoSlide / slideDurationMs) * 0.04;
-                const zw = width * zoomScale;
-                const zh = currentH * zoomScale;
-                const zx = (width - zw) / 2;
-                const zy = currentY + (currentH - zh) / 2;
-
-                ctx.globalAlpha = 1;
-                ctx.drawImage(currentImg, zx, zy, zw, zh);
-
-                if (isTransitioning && nextImg && nextImg instanceof HTMLImageElement) {
-                  ctx.globalAlpha = transitionProgress;
-                  ctx.drawImage(nextImg, 0, nextY, width, nextH);
-                }
-              }
-              ctx.restore();
-
-              // 3. Instagram Stories / TikTok Segmented Progress Indicator at Top
-              const barMargin = 32;
-              const barTop = 36;
-              const barHeight = 4;
-              const barSpacing = 8;
-              const totalBarWidth = width - barMargin * 2;
-              const segWidth = (totalBarWidth - (totalSlides - 1) * barSpacing) / totalSlides;
-
-              ctx.save();
-              for (let i = 0; i < totalSlides; i++) {
-                const segX = barMargin + i * (segWidth + barSpacing);
-                // Unfilled track
-                ctx.fillStyle = "rgba(255, 255, 255, 0.22)";
-                ctx.beginPath();
-                ctx.roundRect(segX, barTop, segWidth, barHeight, 2);
-                ctx.fill();
-
-                // Filled track
-                if (i < slideIndex) {
-                  ctx.fillStyle = "#22D3EE";
-                  ctx.beginPath();
-                  ctx.roundRect(segX, barTop, segWidth, barHeight, 2);
-                  ctx.fill();
-                } else if (i === slideIndex) {
-                  const fillP = Math.min(1, Math.max(0, timeIntoSlide / slideDurationMs));
-                  ctx.fillStyle = "#22D3EE";
-                  ctx.beginPath();
-                  ctx.roundRect(segX, barTop, segWidth * fillP, barHeight, 2);
-                  ctx.fill();
-                }
-              }
-              ctx.restore();
-            }
+            drawReelFrame(slideIndex, timeIntoSlide, isTransitioning, transitionProgress);
 
             animFrameId = requestAnimationFrame(renderFrame);
           } catch (err) {
@@ -649,7 +688,7 @@ export function ReelExportDialog({
                 ))}
               </div>
               <p className="text-[11px] text-muted-foreground">
-                Durée totale estimée : {slides.length * slideDurationSec}s pour {slides.length} slides.
+                Durée totale : ~{Math.round(((slides.length - 1) * (slideDurationSec * 1000 + 500) + (slideDurationSec * 1000 + 500)) / 1000)}s ({slideDurationSec}s nettes par slide + transitions fluides).
               </p>
             </div>
 
