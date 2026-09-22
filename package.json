@@ -9,7 +9,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/Hainrixz/open-carrusel"
+    "url": "https://github.com/Steelataure/-carrusel-studio.git"
   },
   "scripts": {
     "setup": "node scripts/setup.mjs",

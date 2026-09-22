@@ -1,0 +1,27 @@
+{
+  "name": "@LeDevCodeur",
+  "colors": {
+    "primary": "#22D3EE",
+    "secondary": "#A855F7",
+    "accent": "#22D3EE",
+    "background": "#0A0A0F",
+    "surface": "#12121A"
+  },
+  "fonts": {
+    "heading": "Space Grotesk",
+    "body": "JetBrains Mono"
+  },
+  "customFonts": [],
+  "logoPath": null,
+  "styleKeywords": [
+    "hacker aesthetic",
+    "dark mode",
+    "néon cyan/violet",
+    "minimal",
+    "gros titres",
+    "contraste fort",
+    "terminal / code"
+  ],
+  "createdAt": "2026-09-20T10:00:00.000Z",
+  "updatedAt": "2026-09-20T10:00:00.000Z"
+}

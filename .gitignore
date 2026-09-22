@@ -24,9 +24,12 @@
 .DS_Store
 *.pem
 
-# app data (user-generated)
-/data/
-/public/uploads/
+# app data (cache & temporary exports)
+/data/.font-cache/
+/data/exports/*
+!/data/exports/.gitkeep
+/public/uploads/*
+!/public/uploads/.gitkeep
 
 # debug
 npm-debug.log*
@@ -34,8 +37,10 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
-.env*
+# env files (local secrets and personal configs)
+.env*.local
+.env
+!.env.example
 
 # vercel
 .vercel
