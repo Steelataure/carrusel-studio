@@ -958,7 +958,7 @@
     {
       "id": "3aeb769f-a774-455a-9186-4869694f26ba",
       "name": "Pourquoi ton site est lent : Les 5 tueurs de Web Perf",
-      "aspectRatio": "4:5",
+      "aspectRatio": "9:16",
       "slides": [
         {
           "id": "4831786b-ec94-4627-b742-e5fcbc521f2c",
@@ -1015,7 +1015,7 @@
       "isTemplate": false,
       "tags": [],
       "createdAt": "2026-09-21T08:08:03.889Z",
-      "updatedAt": "2026-09-22T09:46:18.605Z",
+      "updatedAt": "2026-09-22T11:12:01.076Z",
       "caption": "Pourquoi ton site web met 4 secondes à s'afficher alors que tes utilisateurs fuient après 2s ? ⚡\n\nVoici les 5 tueurs de performance Web à éliminer dès aujourd'hui :\n• Images non compressées : 60% du poids d'une page ! Passe en WebP/AVIF avec loading=\"lazy\" et dimensions fixes\n• Polices bloquantes : utilise font-display: swap et héberge tes fichiers de police en WOFF2 localement\n• Bundle JavaScript obèse : arrête d'importer tout Lodash pour 1 seule méthode, privilégie le tree-shaking\n• Pas de CDN Edge : sers tes assets statiques au plus près des utilisateurs via Cloudflare/Vercel (15ms vs 300ms)\n• La boîte à outils de diagnostic : PageSpeed Insights, Bundle Analyzer, WebPageTest et Lighthouse\n\nQuel est le score Lighthouse actuel de ton site ? Partage ton chiffre en commentaire ! 👇\n\n🔖 Sauvegarde ce guide pour optimiser ton prochain projet web.\n\nAbonne-toi à @LeDevCodeur pour 1 astuce dev chaque jour. 🔥",
       "hashtags": [
         "webperf",

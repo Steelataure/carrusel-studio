@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import {
   Film,
   Download,
@@ -17,7 +17,12 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { audioEngine, CURATED_TRACKS } from "@/lib/audio-engine";
+import {
+  audioEngine,
+  CURATED_TRACKS,
+  getRecommendedTrack,
+  TrackCategory,
+} from "@/lib/audio-engine";
 import type { Slide } from "@/types/carousel";
 
 interface ReelExportDialogProps {
@@ -37,9 +42,14 @@ export function ReelExportDialog({
   carouselName,
   carouselId,
 }: ReelExportDialogProps) {
+  const recommendedTrack = useMemo(
+    () => getRecommendedTrack(slides, carouselName),
+    [slides, carouselName]
+  );
   const [slideDurationSec, setSlideDurationSec] = useState(3);
   const [transition, setTransition] = useState<TransitionType>("fade");
-  const [selectedTrack, setSelectedTrack] = useState<string>("phonk-energy-808");
+  const [selectedTrack, setSelectedTrack] = useState<string>(() => recommendedTrack.id);
+  const [categoryFilter, setCategoryFilter] = useState<TrackCategory | "all">("all");
   const [playingPreviewTrack, setPlayingPreviewTrack] = useState<string | null>(null);
 
   // Custom Audio File State
@@ -77,6 +87,23 @@ export function ReelExportDialog({
       }
     };
   }, [customAudioUrl]);
+
+  // Auto-sync recommendation if slides change
+  useEffect(() => {
+    if (selectedTrack !== "none" && selectedTrack !== "custom") {
+      setSelectedTrack(recommendedTrack.id);
+    }
+  }, [recommendedTrack.id]);
+
+  // Subscribe to audio engine changes
+  useEffect(() => {
+    if (!audioEngine) return;
+    const unsub = audioEngine.subscribe((playing, trackId) => {
+      if (!playing) setPlayingPreviewTrack(null);
+      else setPlayingPreviewTrack(trackId);
+    });
+    return unsub;
+  }, []);
 
   // Stop audio playback when modal closes or unmounts
   useEffect(() => {
@@ -152,7 +179,7 @@ export function ReelExportDialog({
     if (customAudioUrl) URL.revokeObjectURL(customAudioUrl);
     setCustomAudioUrl(null);
     setCustomAudioFile(null);
-    setSelectedTrack("phonk-energy-808");
+    setSelectedTrack(recommendedTrack.id);
   };
 
   const handleGenerateReel = async () => {
@@ -177,20 +204,21 @@ export function ReelExportDialog({
     let animFrameId: number | null = null;
     let customAudioPlaybackEl: HTMLAudioElement | null = null;
     let customAudioCtx: AudioContext | null = null;
+    let trackAudioCtx: AudioContext | null = null;
+    let stopStreamAudio: (() => void) | null = null;
 
     try {
+      // 1. Prepare offscreen canvas
       const width = 1080;
-      const height = 1920; // 9:16 Reel standard
-      const canvas = canvasRef.current || document.createElement("canvas");
+      const height = 1920;
+      const canvas = document.createElement("canvas");
       canvas.width = width;
       canvas.height = height;
-      const ctx = canvas.getContext("2d", { alpha: false });
-      if (!ctx) throw new Error("Impossible d'initialiser le Canvas");
+      const ctx = canvas.getContext("2d");
+      if (!ctx) throw new Error("Impossible de créer le contexte 2D Canvas");
 
-      // 1. Fetch rendered HD PNG frames from server pipeline
-      setProgress(15);
-      setStatusText("Génération des visuels 1080x1920...");
-
+      // 2. Load rendered frames from server HD export route
+      setStatusText("Génération des frames HD 1080x1920...");
       const framesRes = await fetch(`/api/carousels/${carouselId}/frames`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -198,34 +226,43 @@ export function ReelExportDialog({
       });
 
       if (!framesRes.ok) {
-        const errJson = await framesRes.json().catch(() => ({}));
-        throw new Error(errJson.error || "Échec du rendu des frames");
+        const errData = await framesRes.json().catch(() => ({}));
+        throw new Error(errData.error || "Erreur de génération des slides HD sur le serveur");
       }
 
-      const framesData = await framesRes.json();
-      const frames: { dataUrl: string }[] = framesData.frames || [];
-      if (frames.length === 0) {
-        throw new Error("Aucune image générée");
+      const data = await framesRes.json();
+      const rawList = data.dataUrls || data.frames || [];
+      const frameUrls: string[] = rawList
+        .map((f: unknown) => {
+          if (typeof f === "string") return f;
+          if (typeof f === "object" && f !== null && "dataUrl" in f) {
+            return (f as { dataUrl: string }).dataUrl;
+          }
+          return "";
+        })
+        .filter(Boolean);
+
+      if (frameUrls.length === 0) {
+        throw new Error("Aucune image n'a été retournée par le serveur");
       }
 
-      // 2. Load all PNG frames as real HTMLImageElements
-      setStatusText("Chargement des images...");
       setProgress(35);
-      const loadedImages: HTMLImageElement[] = [];
+      setStatusText("Préparation des médias...");
 
-      for (let i = 0; i < frames.length; i++) {
+      const loadedImages: HTMLImageElement[] = [];
+      for (let i = 0; i < frameUrls.length; i++) {
         const img = new Image();
         img.crossOrigin = "anonymous";
         await new Promise<void>((resolve, reject) => {
           img.onload = () => resolve();
-          img.onerror = () => reject(new Error(`Impossible de charger l'image ${i + 1}`));
-          img.src = frames[i].dataUrl;
+          img.onerror = () => reject(new Error(`Slide ${i + 1} n'a pas pu être décodée`));
+          img.src = frameUrls[i];
         });
         loadedImages.push(img);
-        setProgress(Math.round(35 + ((i + 1) / frames.length) * 15));
+        setProgress(Math.round(35 + ((i + 1) / frameUrls.length) * 15));
       }
 
-      // 3. Setup Audio (Custom MP3, Built-in Punchy Beat, or Muted)
+      // 3. Setup Audio (Custom MP3, Studio Curated Beat, or Muted)
       let audioStreamNode: MediaStreamAudioDestinationNode | null = null;
 
       if (selectedTrack === "custom" && customAudioUrl) {
@@ -247,10 +284,18 @@ export function ReelExportDialog({
         }
       } else if (selectedTrack !== "none" && audioEngine) {
         try {
-          audioStreamNode = audioEngine.getMediaStreamDestination();
-          await audioEngine.play(selectedTrack);
+          const AudioContextClass =
+            window.AudioContext ||
+            (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+          trackAudioCtx = new AudioContextClass();
+          if (trackAudioCtx.state === "suspended") await trackAudioCtx.resume();
+          const streamAudio = await audioEngine.createMediaStreamAudioNode(trackAudioCtx, selectedTrack);
+          if (streamAudio) {
+            audioStreamNode = streamAudio.destNode;
+            stopStreamAudio = streamAudio.stop;
+          }
         } catch (audioErr) {
-          console.warn("Audio playback not available:", audioErr);
+          console.warn("Studio audio streaming failed:", audioErr);
         }
       }
 
@@ -388,6 +433,14 @@ export function ReelExportDialog({
       if (recorder.state === "recording") {
         recorder.stop();
       }
+      if (stopStreamAudio) {
+        try { stopStreamAudio(); } catch {}
+        stopStreamAudio = null;
+      }
+      if (trackAudioCtx) {
+        try { trackAudioCtx.close().catch(() => {}); } catch {}
+        trackAudioCtx = null;
+      }
       if (audioEngine) {
         audioEngine.stop();
       }
@@ -413,6 +466,12 @@ export function ReelExportDialog({
       if (animFrameId) cancelAnimationFrame(animFrameId);
       if (recorder && recorder.state === "recording") {
         try { recorder.stop(); } catch {}
+      }
+      if (stopStreamAudio) {
+        try { stopStreamAudio(); } catch {}
+      }
+      if (trackAudioCtx) {
+        try { trackAudioCtx.close().catch(() => {}); } catch {}
       }
       if (audioEngine) audioEngine.stop();
       if (customAudioPlaybackEl) {
@@ -593,11 +652,43 @@ export function ReelExportDialog({
               <div className="flex items-center justify-between">
                 <label className="text-xs font-semibold flex items-center gap-1.5 text-foreground">
                   <Music className="h-3.5 w-3.5 text-accent" />
-                  <span>Piste Audio & Musique</span>
+                  <span>Musique Studio & Ambiance sonore</span>
                 </label>
                 <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 font-medium">
-                  Libre de droits • Instagram Ready
+                  Vrais MP3 Studio • Libres de droits
                 </span>
+              </div>
+
+              {/* Smart Content Recommendation Box */}
+              <div className="p-3 rounded-xl border border-accent/30 bg-accent/5 flex items-start gap-2.5">
+                <div className="h-7 w-7 rounded-lg bg-accent/15 text-accent flex items-center justify-center shrink-0 mt-0.5">
+                  <Sparkles className="h-4 w-4" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs font-bold text-foreground">
+                      Recommandé pour votre extrait :
+                    </span>
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-accent/20 text-accent font-bold">
+                      {recommendedTrack.name}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    {recommendedTrack.recommendedFor} ({recommendedTrack.genre} • {recommendedTrack.bpm} BPM)
+                  </p>
+                </div>
+                {selectedTrack !== recommendedTrack.id && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedTrack(recommendedTrack.id);
+                      if (audioEngine) audioEngine.play(recommendedTrack.id);
+                    }}
+                    className="text-[10px] font-bold px-2.5 py-1 rounded-lg bg-accent text-accent-foreground shrink-0 hover:opacity-90 transition-opacity cursor-pointer shadow-xs"
+                  >
+                    Sélectionner
+                  </button>
+                )}
               </div>
 
               {/* 1. BEST PRACTICE HIGHLIGHT: Trending Instagram Audio (Muted Export) */}
@@ -759,16 +850,85 @@ export function ReelExportDialog({
                 </div>
               </div>
 
-              {/* 3. BUILT-IN ENERGETIC PUNCHY BEATS */}
-              <div className="space-y-1.5 pt-1">
-                <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-1">
-                  Beats énergiques rythmés (100% libres de droits)
-                </p>
+              {/* 3. BUILT-IN STUDIO MP3 TRACKS */}
+              <div className="space-y-2 pt-1">
+                <div className="flex items-center justify-between px-1">
+                  <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                    Musiques Studio selon votre style
+                  </p>
+                  <span className="text-[10px] text-muted-foreground font-mono">
+                    {CURATED_TRACKS.length} pistes disponibles
+                  </span>
+                </div>
 
-                <div className="space-y-1.5">
-                  {CURATED_TRACKS.map((track) => {
+                {/* Category Filter Tabs */}
+                <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+                  <button
+                    type="button"
+                    onClick={() => setCategoryFilter("all")}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-medium whitespace-nowrap transition-colors cursor-pointer ${
+                      categoryFilter === "all"
+                        ? "bg-foreground text-background shadow-xs font-bold"
+                        : "bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/80"
+                    }`}
+                  >
+                    Toutes ({CURATED_TRACKS.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCategoryFilter("viral")}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-medium whitespace-nowrap transition-colors cursor-pointer ${
+                      categoryFilter === "viral"
+                        ? "bg-accent text-accent-foreground shadow-xs font-bold"
+                        : "bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/80"
+                    }`}
+                  >
+                    🔥 Phonk & Viral
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCategoryFilter("tech")}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-medium whitespace-nowrap transition-colors cursor-pointer ${
+                      categoryFilter === "tech"
+                        ? "bg-accent text-accent-foreground shadow-xs font-bold"
+                        : "bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/80"
+                    }`}
+                  >
+                    💻 Tech & Code
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCategoryFilter("finance")}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-medium whitespace-nowrap transition-colors cursor-pointer ${
+                      categoryFilter === "finance"
+                        ? "bg-accent text-accent-foreground shadow-xs font-bold"
+                        : "bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/80"
+                    }`}
+                  >
+                    📈 Finance & Bourse
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCategoryFilter("aesthetic")}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-medium whitespace-nowrap transition-colors cursor-pointer ${
+                      categoryFilter === "aesthetic"
+                        ? "bg-accent text-accent-foreground shadow-xs font-bold"
+                        : "bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/80"
+                    }`}
+                  >
+                    ☕ Minimal & Lo-Fi
+                  </button>
+                </div>
+
+                {/* Tracks list */}
+                <div className="space-y-1.5 max-h-72 overflow-y-auto pr-1">
+                  {(categoryFilter === "all"
+                    ? CURATED_TRACKS
+                    : CURATED_TRACKS.filter((t) => t.category === categoryFilter)
+                  ).map((track) => {
                     const isCurrent = selectedTrack === track.id;
                     const isPlaying = playingPreviewTrack === track.id;
+                    const isRecommended = track.id === recommendedTrack.id;
 
                     return (
                       <div
@@ -778,36 +938,41 @@ export function ReelExportDialog({
                           if (customPreviewAudioRef.current) customPreviewAudioRef.current.pause();
                           setIsPlayingCustom(false);
                         }}
-                        className={`p-2.5 rounded-xl border cursor-pointer transition-all flex items-center justify-between gap-2.5 ${
+                        className={`p-3 rounded-xl border cursor-pointer transition-all flex items-center justify-between gap-3 ${
                           isCurrent
-                            ? "border-accent bg-accent/10 shadow-xs"
+                            ? "border-accent bg-accent/10 shadow-xs ring-1 ring-accent/30"
                             : "border-border/80 hover:border-accent/40 bg-surface/30 hover:bg-surface/60"
                         }`}
                       >
-                        <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="flex items-center gap-3 min-w-0 flex-1">
                           {/* Play/Stop Preview Button */}
                           <button
                             type="button"
                             onClick={(e) => toggleTrackPreview(track.id, e)}
-                            className={`h-8 w-8 rounded-lg flex items-center justify-center shrink-0 transition-all ${
+                            className={`h-9 w-9 rounded-lg flex items-center justify-center shrink-0 transition-all ${
                               isPlaying
                                 ? "bg-accent text-accent-foreground shadow-md scale-105"
                                 : "bg-muted text-muted-foreground hover:bg-accent/20 hover:text-accent border border-border/60"
                             }`}
-                            title={isPlaying ? "Arrêter l'écoute" : "Écouter l'extrait audio"}
+                            title={isPlaying ? "Arrêter l'écoute" : "Écouter ce titre"}
                           >
                             {isPlaying ? (
-                              <VolumeX className="h-3.5 w-3.5" />
+                              <VolumeX className="h-4 w-4" />
                             ) : (
-                              <Play className="h-3.5 w-3.5 fill-current ml-0.5" />
+                              <Play className="h-4 w-4 fill-current ml-0.5" />
                             )}
                           </button>
 
-                          <div className="min-w-0">
+                          <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-1.5 flex-wrap">
-                              <p className="text-xs font-semibold text-foreground truncate">
+                              <p className="text-xs font-bold text-foreground truncate">
                                 {track.name}
                               </p>
+                              {isRecommended && (
+                                <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-amber-500/20 text-amber-400 font-bold">
+                                  ⭐ Recommandé
+                                </span>
+                              )}
                               <span className="text-[9px] px-1.5 py-0.2 rounded bg-muted text-muted-foreground font-mono">
                                 {track.bpm} BPM
                               </span>
@@ -815,26 +980,29 @@ export function ReelExportDialog({
                                 {track.genre}
                               </span>
                             </div>
-                            <p className="text-[10px] text-muted-foreground truncate mt-0.5">
+                            <p className="text-[11px] text-muted-foreground truncate mt-0.5">
                               {track.vibe}
+                            </p>
+                            <p className="text-[10px] text-accent/80 truncate mt-0.5">
+                              🎯 Idéal : {track.recommendedFor}
                             </p>
                           </div>
                         </div>
 
                         <div className="flex items-center gap-2 shrink-0">
                           {isPlaying && (
-                            <div className="flex items-end gap-0.5 h-3 px-1.5 py-0.5 bg-accent/20 rounded-full">
+                            <div className="flex items-end gap-0.5 h-3.5 px-2 py-0.5 bg-accent/20 rounded-full">
                               <span className="w-0.5 bg-accent rounded-full animate-bounce h-full" />
                               <span className="w-0.5 bg-accent rounded-full animate-bounce h-2/3 [animation-delay:150ms]" />
                               <span className="w-0.5 bg-accent rounded-full animate-bounce h-4/5 [animation-delay:300ms]" />
                             </div>
                           )}
                           {isCurrent ? (
-                            <div className="h-4 w-4 rounded-full bg-accent text-accent-foreground flex items-center justify-center">
-                              <Check className="h-2.5 w-2.5 stroke-[3]" />
+                            <div className="h-5 w-5 rounded-full bg-accent text-accent-foreground flex items-center justify-center">
+                              <Check className="h-3 w-3 stroke-[3]" />
                             </div>
                           ) : (
-                            <div className="h-4 w-4 rounded-full border border-border/80" />
+                            <div className="h-5 w-5 rounded-full border border-border/80" />
                           )}
                         </div>
                       </div>
