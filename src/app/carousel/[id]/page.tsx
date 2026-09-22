@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useRef, use } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Trash2, Grid3X3, Bookmark, Maximize2, Check, CheckCircle2, Clock, Pencil, Film } from "lucide-react";
+import { Trash2, Grid3X3, Bookmark, Maximize2, Check, CheckCircle2, Clock, Pencil, Film, Sparkles } from "lucide-react";
 import { TopBar } from "@/components/layout/TopBar";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -13,6 +13,7 @@ import { SlideFilmstrip } from "@/components/editor/SlideFilmstrip";
 import { AspectRatioSelector } from "@/components/editor/AspectRatioSelector";
 import { ExportButton } from "@/components/editor/ExportButton";
 import { CaptionPanel } from "@/components/editor/CaptionPanel";
+import { CaptionModal } from "@/components/editor/CaptionModal";
 import { FullscreenPreview } from "@/components/editor/FullscreenPreview";
 import { BrandSetup } from "@/components/brand/BrandSetup";
 import { MusicPlayer } from "@/components/editor/MusicPlayer";
@@ -41,6 +42,7 @@ export default function CarouselEditorPage({ params }: PageProps) {
   const [templateSaved, setTemplateSaved] = useState(false);
   const [showQuickEdit, setShowQuickEdit] = useState(false);
   const [showReelExport, setShowReelExport] = useState(false);
+  const [showCaptionModal, setShowCaptionModal] = useState(false);
 
   // Confirm dialog state
   const [confirmState, setConfirmState] = useState<{
@@ -414,6 +416,21 @@ export default function CarouselEditorPage({ params }: PageProps) {
                 <span className="hidden sm:inline">Éditer Slide</span>
               </Button>
             )}
+            <Button
+              variant={showCaptionModal ? "accent" : "outline"}
+              size="sm"
+              onClick={() => setShowCaptionModal(true)}
+              className="text-xs gap-1.5 border-accent/40 text-accent hover:bg-accent/10 shadow-xs"
+              title="Voir les 3 titres viraux et la légende optimisée"
+            >
+              <Sparkles className="h-3.5 w-3.5 text-accent" />
+              <span>Titres & Légende</span>
+              {carousel.alternativeTitles && carousel.alternativeTitles.length > 0 && (
+                <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-accent/20 font-mono font-bold">
+                  {carousel.alternativeTitles.length}
+                </span>
+              )}
+            </Button>
             <MusicPlayer />
             <Button
               variant="outline"
@@ -448,9 +465,26 @@ export default function CarouselEditorPage({ params }: PageProps) {
 
           {/* Caption panel */}
           <CaptionPanel
+            carouselId={carousel.id}
+            carouselName={carousel.name}
             caption={carousel.caption}
             hashtags={carousel.hashtags}
             alternativeTitles={carousel.alternativeTitles}
+            onApplyTitle={async (newTitle) => {
+              const res = await fetch(`/api/carousels/${id}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ name: newTitle }),
+              });
+              if (res.ok) {
+                const updated = await res.json();
+                setCarousel(updated);
+              }
+            }}
+            onOpenModal={() => setShowCaptionModal(true)}
+            onUpdateCaptionData={(data) => {
+              setCarousel((prev) => (prev ? { ...prev, ...data } : null));
+            }}
           />
         </div>
       </div>
@@ -475,6 +509,31 @@ export default function CarouselEditorPage({ params }: PageProps) {
         slides={carousel.slides}
         carouselName={carousel.name}
         carouselId={carousel.id}
+      />
+
+      {/* Caption & Viral Titles Modal */}
+      <CaptionModal
+        open={showCaptionModal}
+        onOpenChange={setShowCaptionModal}
+        carouselId={carousel.id}
+        carouselName={carousel.name}
+        caption={carousel.caption}
+        hashtags={carousel.hashtags}
+        alternativeTitles={carousel.alternativeTitles}
+        onApplyTitle={async (newTitle) => {
+          const res = await fetch(`/api/carousels/${id}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name: newTitle }),
+          });
+          if (res.ok) {
+            const updated = await res.json();
+            setCarousel(updated);
+          }
+        }}
+        onUpdateCaptionData={(data) => {
+          setCarousel((prev) => (prev ? { ...prev, ...data } : null));
+        }}
       />
 
       {/* Filmstrip */}

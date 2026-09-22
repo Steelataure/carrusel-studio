@@ -18,7 +18,20 @@
       "isTemplate": false,
       "tags": [],
       "createdAt": "2026-09-20T09:02:27.263Z",
-      "updatedAt": "2026-09-20T09:02:27.769Z"
+      "updatedAt": "2026-09-22T09:39:31.092Z",
+      "alternativeTitles": [
+        "Ce que 90% des développeurs ignorent sur Test LeDevCodeur",
+        "L'erreur fatale en Test LeDevCodeur qui te fait perdre un temps fou",
+        "Le guide ultra-rapide pour maîtriser Test LeDevCodeur proprement"
+      ],
+      "caption": "Test LeDevCodeur expliqué simplement en 60s chrono ⚡\n\n• Les concepts indispensables\n• Les erreurs à éviter absolument\n• Bonnes pratiques pour du code propre\n\nSwipe jusqu'au bout pour voir les exemples concrets !\n\n🔖 Enregistre ce post pour ton prochain sprint.\n💬 Tu utilises quoi de ton côté ? Dis-le moi en commentaire 👇",
+      "hashtags": [
+        "devcodeur",
+        "programmation",
+        "developpeurweb",
+        "techfr",
+        "cleancode"
+      ]
     },
     {
       "id": "a22799af-a546-401a-84ca-38a8829aacf2",
@@ -98,7 +111,20 @@
       "isTemplate": false,
       "tags": [],
       "createdAt": "2026-09-21T06:45:46.061Z",
-      "updatedAt": "2026-09-21T06:45:46.061Z"
+      "updatedAt": "2026-09-21T06:45:46.061Z",
+      "alternativeTitles": [
+        "Ce que 90% des développeurs ignorent sur RAG",
+        "L'erreur fatale en RAG qui te fait perdre un temps fou",
+        "Le guide ultra-rapide pour maîtriser RAG proprement"
+      ],
+      "caption": "RAG expliqué simplement en 60s chrono ⚡\n\n• Les concepts indispensables\n• Les erreurs à éviter absolument\n• Bonnes pratiques pour du code propre\n\nSwipe jusqu'au bout pour voir les exemples concrets !\n\n🔖 Enregistre ce post pour ton prochain sprint.\n💬 Tu utilises quoi de ton côté ? Dis-le moi en commentaire 👇",
+      "hashtags": [
+        "devcodeur",
+        "programmation",
+        "developpeurweb",
+        "techfr",
+        "cleancode"
+      ]
     },
     {
       "id": "e65c7863-5c42-4582-ae6b-9d21fe1b98b8",
@@ -160,7 +186,7 @@
       "isTemplate": false,
       "tags": [],
       "createdAt": "2026-09-21T06:47:59.781Z",
-      "updatedAt": "2026-09-22T08:52:25.979Z",
+      "updatedAt": "2026-09-22T09:34:21.255Z",
       "caption": "Arrête d'utiliser Git comme en 2015 ! 🚀\n\nLa plupart des développeurs se limitent à git add, git commit et git push, alors que Git intègre des commandes modernes surpuissantes :\n• git switch : change de branche proprement sans risque d'écraser tes fichiers\n• git commit --amend --no-edit : répare un oubli dans ton dernier commit sans créer de commit \"fix typo\"\n• git stash push -m \"wip\" : nomme tes sauvegardes temporaires pour t'y retrouver en 1 seconde\n• git restore : annule des modifications locales ou désindexe en toute sécurité\n• git log --oneline --graph --all : visualise l'arbre de tes branches de façon limpide\n\nQuelle est la commande Git dont tu ne peux plus te passer ? Partage-la en commentaire ! 👇\n\n🔖 Sauvegarde ce carrousel pour garder ces raccourcis sous la main.\n\nAbonne-toi à @LeDevCodeur pour 1 astuce dev chaque jour. 🔥",
       "hashtags": [
         "git",
@@ -176,7 +202,7 @@
         "Arrête de te battre avec Git : ces 5 commandes changent tout",
         "Le terminal Git comme un Senior : 5 commandes magiques"
       ],
-      "scheduledFor": "2026-09-25"
+      "scheduledFor": "2026-09-21"
     },
     {
       "id": "099250db-0cdb-40d6-9438-878b6a7f6a7c",
@@ -1285,7 +1311,20 @@
       "tags": [],
       "createdAt": "2026-09-21T08:17:59.729Z",
       "updatedAt": "2026-09-22T08:52:26.311Z",
-      "scheduledFor": "2026-10-10"
+      "scheduledFor": "2026-10-10",
+      "alternativeTitles": [
+        "Ce que 90% des développeurs ignorent sur Tech & Code Minimaliste (6 slides) (from template)",
+        "L'erreur fatale en Tech & Code Minimaliste (6 slides) (from template) qui te fait perdre un temps fou",
+        "Le guide ultra-rapide pour maîtriser Tech & Code Minimaliste (6 slides) (from template) proprement"
+      ],
+      "caption": "Tech & Code Minimaliste (6 slides) (from template) expliqué simplement en 60s chrono ⚡\n\n• Les concepts indispensables\n• Les erreurs à éviter absolument\n• Bonnes pratiques pour du code propre\n\nSwipe jusqu'au bout pour voir les exemples concrets !\n\n🔖 Enregistre ce post pour ton prochain sprint.\n💬 Tu utilises quoi de ton côté ? Dis-le moi en commentaire 👇",
+      "hashtags": [
+        "devcodeur",
+        "programmation",
+        "developpeurweb",
+        "techfr",
+        "cleancode"
+      ]
     }
   ]
 }
