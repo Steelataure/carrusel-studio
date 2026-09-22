@@ -4,7 +4,7 @@
 
 ### Créez des carrousels & des reels viraux avec l'IA. Exportez en PNG pixel-perfect & vidéo 9:16.
 
-**Local-first. Open source. Propulsé par Steelataure (@LeDevCodeur).**
+**Local-first. Open source. Propulsé par Steelataure.**
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-1a1a2e.svg?style=flat-square)](./LICENSE)
 [![Built with Claude](https://img.shields.io/badge/built%20with-Claude-e94560.svg?style=flat-square)](https://claude.ai)
@@ -183,7 +183,7 @@ carrusel-studio/
 
 ## 👤 À propos de l'Auteur
 
-**Carrusel Studio** est développé et maintenu par **[Steelataure](https://github.com/Steelataure)** (**@LeDevCodeur**).
+**Carrusel Studio** est développé et maintenu par **[Steelataure](https://github.com/Steelataure)**.
 
 Conçu pour automatiser la création de contenu tech, de carrousels pédagogiques et de vidéos verticales percutantes pour Instagram, TikTok, LinkedIn et YouTube Shorts.
 
@@ -199,7 +199,7 @@ Ce projet est sous licence [MIT](./LICENSE) — libre d'utilisation, de modifica
 
 <div align="center">
 
-**Développé avec ❤️ par [Steelataure](https://github.com/Steelataure) (@LeDevCodeur).**
+**Développé avec ❤️ par [Steelataure](https://github.com/Steelataure).**
 
 *Créé pour propulser votre audience et votre contenu au niveau supérieur.*
 

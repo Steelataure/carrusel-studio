@@ -2,7 +2,7 @@
   "carousels": [
     {
       "id": "23ddaf85-45fc-4364-828d-090a5c203ecd",
-      "name": "Test LeDevCodeur",
+      "name": "Comprendre les APIs REST en 60s",
       "aspectRatio": "4:5",
       "slides": [
         {
@@ -20,11 +20,11 @@
       "createdAt": "2026-09-20T09:02:27.263Z",
       "updatedAt": "2026-09-22T09:39:31.092Z",
       "alternativeTitles": [
-        "Ce que 90% des développeurs ignorent sur Test LeDevCodeur",
-        "L'erreur fatale en Test LeDevCodeur qui te fait perdre un temps fou",
-        "Le guide ultra-rapide pour maîtriser Test LeDevCodeur proprement"
+        "Ce que 90% des développeurs ignorent sur les APIs REST",
+        "L'erreur fatale en API REST qui ruine ton backend",
+        "Le guide ultra-rapide pour concevoir une API REST propre"
       ],
-      "caption": "Test LeDevCodeur expliqué simplement en 60s chrono ⚡\n\n• Les concepts indispensables\n• Les erreurs à éviter absolument\n• Bonnes pratiques pour du code propre\n\nSwipe jusqu'au bout pour voir les exemples concrets !\n\n🔖 Enregistre ce post pour ton prochain sprint.\n💬 Tu utilises quoi de ton côté ? Dis-le moi en commentaire 👇",
+      "caption": "Les APIs REST expliquées simplement en 60s chrono ⚡\n\n• Méthodes HTTP (GET, POST, PUT, DELETE)\n• Codes de statut indispensables\n• Bonnes pratiques de structuration\n\nSwipe jusqu'au bout pour voir les exemples concrets !\n\n🔖 Enregistre ce post pour ton prochain sprint.\n💬 Quelle API utilises-tu le plus ? Dis-le moi en commentaire 👇",
       "hashtags": [
         "devcodeur",
         "programmation",
@@ -186,21 +186,21 @@
       "isTemplate": false,
       "tags": [],
       "createdAt": "2026-09-21T06:47:59.781Z",
-      "updatedAt": "2026-09-22T09:34:21.255Z",
-      "caption": "Arrête d'utiliser Git comme en 2015 ! 🚀\n\nLa plupart des développeurs se limitent à git add, git commit et git push, alors que Git intègre des commandes modernes surpuissantes :\n• git switch : change de branche proprement sans risque d'écraser tes fichiers\n• git commit --amend --no-edit : répare un oubli dans ton dernier commit sans créer de commit \"fix typo\"\n• git stash push -m \"wip\" : nomme tes sauvegardes temporaires pour t'y retrouver en 1 seconde\n• git restore : annule des modifications locales ou désindexe en toute sécurité\n• git log --oneline --graph --all : visualise l'arbre de tes branches de façon limpide\n\nQuelle est la commande Git dont tu ne peux plus te passer ? Partage-la en commentaire ! 👇\n\n🔖 Sauvegarde ce carrousel pour garder ces raccourcis sous la main.\n\nAbonne-toi à @LeDevCodeur pour 1 astuce dev chaque jour. 🔥",
+      "updatedAt": "2026-09-22T09:44:54.468Z",
+      "caption": "5 commandes Git indispensables expliqué simplement en 60 secondes chrono ⚡\n\n• Étape 1 : Les fondamentaux clés\n• Étape 2 : Les fondamentaux clés\n• Étape 3 : Les fondamentaux clés\n• Étape 4 : Les fondamentaux clés\n\nSwipe jusqu'au bout pour voir les exemples concrets et éviter les pièges en production !\n\n🔖 Enregistre ce post pour ton prochain sprint / session de code.\n💬 Tu utilises quoi de ton côté ? Dis-le moi en commentaire 👇",
       "hashtags": [
         "git",
         "github",
-        "cleancode",
-        "developpeur",
-        "ledevcodeur"
+        "devcodeur",
+        "versioncontrol",
+        "programmation"
       ],
       "status": "published",
       "publishedAt": "2026-09-21T08:17:14.180Z",
       "alternativeTitles": [
-        "5 commandes Git modernes que 90% des devs ignorent",
-        "Arrête de te battre avec Git : ces 5 commandes changent tout",
-        "Le terminal Git comme un Senior : 5 commandes magiques"
+        "Ce que 90% des développeurs ignorent sur 5 commandes Git indispensables",
+        "L'erreur classique en 5 commandes Git indispensables qui te fait perdre des heures",
+        "Le guide ultra-rapide pour maîtriser 5 commandes Git indispensables proprement"
       ],
       "scheduledFor": "2026-09-21"
     },

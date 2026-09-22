@@ -2,7 +2,7 @@
   "name": "carrusel-studio",
   "version": "1.0.0",
   "description": "AI-powered Instagram & TikTok carousel & reel builder. Chat with AI to design slides; export as pixel-perfect PNGs & animated 9:16 videos.",
-  "author": "Steelataure (Le DevCodeur)",
+  "author": "Steelataure",
   "license": "MIT",
   "private": true,
   "engines": {
