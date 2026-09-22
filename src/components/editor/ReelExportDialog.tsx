@@ -15,6 +15,7 @@ import {
   Upload,
   Trash2,
   TrendingUp,
+  Clock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -66,6 +67,8 @@ export function ReelExportDialog({
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [videoBlob, setVideoBlob] = useState<Blob | null>(null);
   const [isPlayingPreview, setIsPlayingPreview] = useState(false);
+  const [previewCurrentTime, setPreviewCurrentTime] = useState(0);
+  const [previewDuration, setPreviewDuration] = useState(0);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const videoPreviewRef = useRef<HTMLVideoElement | null>(null);
@@ -667,29 +670,48 @@ export function ReelExportDialog({
           {/* Left Settings Panel */}
           <div className="flex-1 p-6 overflow-y-auto border-r border-border space-y-5">
             {/* Slide Duration Setting */}
-            <div className="space-y-2">
-              <label className="text-xs font-semibold flex items-center justify-between text-foreground">
-                <span>Durée par slide</span>
-                <span className="text-accent font-mono">{slideDurationSec} secondes</span>
-              </label>
+            <div className="space-y-2.5">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-semibold flex items-center gap-1.5 text-foreground">
+                  <Clock className="h-3.5 w-3.5 text-accent" />
+                  <span>Temps d&apos;affichage par slide</span>
+                </label>
+                <span className="text-accent font-mono text-xs font-bold bg-accent/10 px-2 py-0.5 rounded-md">
+                  {slideDurationSec}s / slide
+                </span>
+              </div>
               <div className="grid grid-cols-3 gap-2">
-                {[2, 3, 4].map((sec) => (
+                {[
+                  { sec: 2, label: "2 secondes", sub: "Dynamique" },
+                  { sec: 3, label: "3 secondes", sub: "Idéal • Recommandé" },
+                  { sec: 4, label: "4 secondes", sub: "Posé • Détaillé" },
+                ].map(({ sec, label, sub }) => (
                   <button
                     key={sec}
+                    type="button"
                     onClick={() => setSlideDurationSec(sec)}
-                    className={`py-2 px-3 rounded-lg border text-xs font-medium transition-all ${
+                    className={`py-2 px-2.5 rounded-lg border text-left transition-all cursor-pointer ${
                       slideDurationSec === sec
-                        ? "border-accent bg-accent/10 text-accent font-bold shadow-xs"
-                        : "border-border text-muted-foreground hover:border-accent/40"
+                        ? "border-accent bg-accent/10 text-accent shadow-xs ring-1 ring-accent/30"
+                        : "border-border text-muted-foreground hover:border-accent/40 bg-surface/30"
                     }`}
                   >
-                    {sec} secondes
+                    <div className="text-xs font-bold leading-tight">{label}</div>
+                    <div className="text-[10px] text-muted-foreground mt-0.5">{sub}</div>
                   </button>
                 ))}
               </div>
-              <p className="text-[11px] text-muted-foreground">
-                Durée totale : ~{Math.round(((slides.length - 1) * (slideDurationSec * 1000 + 500) + (slideDurationSec * 1000 + 500)) / 1000)}s ({slideDurationSec}s nettes par slide + transitions fluides).
-              </p>
+              <div className="flex items-center justify-between p-2.5 rounded-xl bg-accent/5 border border-accent/15 text-xs">
+                <div className="flex items-center gap-1.5 text-foreground">
+                  <span className="text-accent font-bold">⏱️ Durée totale de la vidéo :</span>
+                  <span className="font-bold text-accent font-mono text-sm">
+                    {Math.round(((slides.length - 1) * (slideDurationSec * 1000 + 500) + (slideDurationSec * 1000 + 500)) / 1000)}s
+                  </span>
+                </div>
+                <span className="text-[11px] text-muted-foreground">
+                  {slides.length} slides × {slideDurationSec}s + transitions
+                </span>
+              </div>
             </div>
 
             {/* Transition Style with Live Preview */}
@@ -1184,12 +1206,14 @@ export function ReelExportDialog({
                     playsInline
                     className="w-full h-full object-cover"
                     onClick={togglePreviewPlay}
+                    onTimeUpdate={(e) => setPreviewCurrentTime(e.currentTarget.currentTime)}
+                    onLoadedMetadata={(e) => setPreviewDuration(e.currentTarget.duration)}
                   />
 
                   {/* Overlay Play/Pause Button */}
                   <button
                     onClick={togglePreviewPlay}
-                    className="absolute inset-0 m-auto h-12 w-12 rounded-full bg-black/60 backdrop-blur-sm border border-white/20 flex items-center justify-center text-white opacity-0 hover:opacity-100 transition-opacity"
+                    className="absolute inset-0 m-auto h-12 w-12 rounded-full bg-black/60 backdrop-blur-sm border border-white/20 flex items-center justify-center text-white opacity-0 hover:opacity-100 transition-opacity cursor-pointer"
                   >
                     {isPlayingPreview ? (
                       <Pause className="h-5 w-5" />
@@ -1197,13 +1221,29 @@ export function ReelExportDialog({
                       <Play className="h-5 w-5 fill-current ml-0.5" />
                     )}
                   </button>
+
+                  {/* Playback time overlay indicator */}
+                  <div className="absolute bottom-2 left-2.5 right-2.5 flex items-center justify-between text-[10px] font-mono text-white/90 bg-black/60 backdrop-blur-xs px-2 py-0.5 rounded-full pointer-events-none">
+                    <span>{Math.floor(previewCurrentTime)}s</span>
+                    <div className="flex-1 mx-2 h-1 bg-white/20 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-accent transition-all duration-75"
+                        style={{
+                          width: `${Math.min(100, (previewCurrentTime / (previewDuration || Math.max(1, ((slides.length - 1) * (slideDurationSec * 1000 + 500) + (slideDurationSec * 1000 + 500)) / 1000))) * 100)}%`,
+                        }}
+                      />
+                    </div>
+                    <span>{Math.round(previewDuration || ((slides.length - 1) * (slideDurationSec * 1000 + 500) + (slideDurationSec * 1000 + 500)) / 1000)}s</span>
+                  </div>
                 </div>
 
                 <div className="flex items-center justify-between w-full mt-3 text-xs text-muted-foreground">
                   <span className="flex items-center gap-1 font-mono text-emerald-400">
                     <Check className="h-3.5 w-3.5" /> Prêt à exporter
                   </span>
-                  <span>{slides.length * slideDurationSec}s</span>
+                  <span className="font-semibold text-foreground">
+                    Durée totale : {Math.round(previewDuration || ((slides.length - 1) * (slideDurationSec * 1000 + 500) + (slideDurationSec * 1000 + 500)) / 1000)}s
+                  </span>
                 </div>
               </div>
             ) : (
@@ -1244,10 +1284,10 @@ export function ReelExportDialog({
                 variant="accent"
                 size="sm"
                 onClick={handleDownload}
-                className="text-xs gap-1.5 font-semibold shadow-md"
+                className="text-xs gap-1.5 font-semibold shadow-md cursor-pointer"
               >
                 <Download className="h-4 w-4" />
-                <span>Télécharger la Vidéo</span>
+                <span>Télécharger la Vidéo ({Math.round(previewDuration || ((slides.length - 1) * (slideDurationSec * 1000 + 500) + (slideDurationSec * 1000 + 500)) / 1000)}s)</span>
               </Button>
             )}
           </div>
