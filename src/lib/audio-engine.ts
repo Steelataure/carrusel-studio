@@ -23,20 +23,52 @@ export const CURATED_TRACKS: TrackInfo[] = [
     igKeywords: ["Phonk drift", "Sigma beat", "High energy reel"],
   },
   {
+    id: "balkan-turbo-phonk",
+    name: "Balkan Turbo Phonk",
+    genre: "Aggressive Phonk",
+    vibe: "Énergie brute, cowbell rapide, viralité maximale",
+    bpm: 135,
+    igKeywords: ["Aggressive phonk", "Cowbell drift", "Viral audio"],
+  },
+  {
     id: "tech-house-bounce",
     name: "Tech House Pulse",
     genre: "Tech House / EDM",
-    vibe: "Kick 4/4 punchy, groove club moderne, dynamique",
+    vibe: "Kick 4/4 punchy, groove club moderne, startup tech",
     bpm: 126,
     igKeywords: ["Deep tech house", "Club coder", "Startup energy"],
+  },
+  {
+    id: "minimal-deep-tech",
+    name: "Silicon Valley Minimal",
+    genre: "Minimal Tech",
+    vibe: "Kick propre, basse feutrée, ambiance dev moderne",
+    bpm: 125,
+    igKeywords: ["Silicon valley", "Clean tech", "Developer flow"],
   },
   {
     id: "drill-motivation",
     name: "Viral Motivation Drill",
     genre: "UK Drill / Trap",
-    vibe: "Rythme entraînant, percussions rapides, boost d'action",
-    bpm: 138,
+    vibe: "Rythme entraînant, percussions rapides, mindset conquérant",
+    bpm: 140,
     igKeywords: ["Motivational beat", "Hustle energy", "Drill instrumental"],
+  },
+  {
+    id: "trap-dark-momentum",
+    name: "Wall Street Dark Trap",
+    genre: "Dark Trap / Finance",
+    vibe: "Snare snappy, 808 punchy, trading & business",
+    bpm: 136,
+    igKeywords: ["Finance trap", "Trading motivation", "Crypto momentum"],
+  },
+  {
+    id: "future-bass-drop",
+    name: "Future Bass Energy",
+    genre: "Future Bass / EDM",
+    vibe: "Accords brillants, énergie explosive, drop dynamique",
+    bpm: 130,
+    igKeywords: ["Future bass", "EDM drop", "High energy boost"],
   },
   {
     id: "synthwave-outrun",
@@ -47,9 +79,33 @@ export const CURATED_TRACKS: TrackInfo[] = [
     igKeywords: ["Synthwave outrun", "Fast retrowave", "Cyberpunk drive"],
   },
   {
+    id: "miami-nightdrive",
+    name: "Miami Nightdrive Funk",
+    genre: "Retrowave Funk 80s",
+    vibe: "Basse slap rebondissante, synthés funk, vibe GTA",
+    bpm: 124,
+    igKeywords: ["Miami 80s", "Funk retrowave", "Nightdrive"],
+  },
+  {
+    id: "boom-bap-hustle",
+    name: "Boom Bap Hustle",
+    genre: "Hip-Hop 90s Boom Bap",
+    vibe: "Kick lourd, caisse claire claquante, focus & business",
+    bpm: 106,
+    igKeywords: ["Boom bap hustle", "90s hip hop", "Focus grind"],
+  },
+  {
+    id: "afrobeat-summer",
+    name: "Afrobeat Summer Wave",
+    genre: "Afrobeat Pop",
+    vibe: "Rythme solaire et dansant, ultra positif et catchy",
+    bpm: 118,
+    igKeywords: ["Afrobeat viral", "Summer dance", "Catchy pop"],
+  },
+  {
     id: "lofi-upbeat-groove",
     name: "Upbeat Lofi Summer",
-    genre: "Upbeat Lofi / Boom Bap",
+    genre: "Sunny Lofi / Boom Bap",
     vibe: "Accords solaires, joyeux, positif & motivant",
     bpm: 108,
     igKeywords: ["Happy lofi", "Summer boom bap", "Positive mindset"],
@@ -169,11 +225,23 @@ class AudioEngine {
         [130.81, 196.0, 261.63], // C
         [123.47, 185.0, 246.94], // B
       ],
+      "balkan-turbo-phonk": [
+        [146.83, 220.0, 293.66], // Dm
+        [155.56, 233.08, 311.13], // D#m
+        [146.83, 220.0, 293.66], // Dm
+        [138.59, 207.65, 277.18], // C#m
+      ],
       "tech-house-bounce": [
         [130.81, 196.0, 261.63, 329.63], // Cmaj
         [146.83, 220.0, 261.63, 349.23], // Dm
         [110.0, 164.81, 220.0, 261.63], // Am
         [174.61, 261.63, 329.63, 392.0], // F
+      ],
+      "minimal-deep-tech": [
+        [87.31, 174.61, 261.63, 311.13], // Fm7
+        [103.83, 207.65, 261.63, 311.13], // Abmaj7
+        [65.41, 130.81, 196.0, 261.63], // Cm7
+        [116.54, 233.08, 293.66, 349.23], // Bbm7
       ],
       "drill-motivation": [
         [146.83, 220.0, 293.66], // Dm
@@ -181,11 +249,41 @@ class AudioEngine {
         [116.54, 174.61, 233.08], // Bb
         [110.0, 164.81, 220.0], // A
       ],
+      "trap-dark-momentum": [
+        [110.0, 164.81, 220.0], // Am
+        [87.31, 174.61, 220.0], // F
+        [146.83, 220.0, 293.66], // Dm
+        [82.41, 164.81, 246.94], // E
+      ],
+      "future-bass-drop": [
+        [174.61, 261.63, 329.63, 392.0], // Fmaj7
+        [196.0, 246.94, 293.66, 392.0], // G
+        [164.81, 246.94, 329.63, 392.0], // Em7
+        [110.0, 220.0, 261.63, 329.63], // Am7
+      ],
       "synthwave-outrun": [
         [146.83, 220.0, 261.63, 349.23], // Dm
         [174.61, 261.63, 329.63, 392.0], // F
         [130.81, 196.0, 261.63, 329.63], // C
         [116.54, 233.08, 293.66, 349.23], // Bb
+      ],
+      "miami-nightdrive": [
+        [146.83, 220.0, 261.63, 349.23], // Dm7
+        [196.0, 246.94, 293.66, 349.23], // G7
+        [130.81, 196.0, 246.94, 329.63], // Cmaj7
+        [110.0, 220.0, 277.18, 329.63], // A7
+      ],
+      "boom-bap-hustle": [
+        [164.81, 246.94, 329.63, 392.0], // Em7
+        [110.0, 220.0, 261.63, 329.63], // Am7
+        [123.47, 185.0, 246.94, 293.66], // Bm7
+        [130.81, 196.0, 261.63, 329.63], // Cmaj7
+      ],
+      "afrobeat-summer": [
+        [130.81, 196.0, 261.63, 329.63], // C
+        [196.0, 246.94, 293.66, 392.0], // G
+        [110.0, 164.81, 220.0, 261.63], // Am
+        [174.61, 220.0, 261.63, 349.23], // F
       ],
       "lofi-upbeat-groove": [
         [261.63, 329.63, 392.0, 493.88], // Cmaj7 (Bright & warm)
@@ -204,47 +302,46 @@ class AudioEngine {
       const chordIdx = Math.floor(step / 16) % chords.length;
       const currentChord = chords[chordIdx];
 
-      // --- 1. DRUMS & PERCUSSIONS (Kicks, Snares, Claps, Hi-Hats) ---
-      if (this.currentTrackId === "tech-house-bounce") {
-        // Four on the floor kick (every 4 sixteenths = 0, 4, 8, 12)
+      // --- 1. DRUMS & PERCUSSIONS ---
+      if (this.currentTrackId === "tech-house-bounce" || this.currentTrackId === "minimal-deep-tech") {
+        // Four on the floor kick
         if (step16 % 4 === 0) {
           this.playPunchyKick(now);
         }
-        // Clap on 4 and 12 (beats 2 and 4)
         if (step16 === 4 || step16 === 12) {
           this.playSnareClap(now);
         }
-        // Open hi-hat on offbeat (2, 6, 10, 14)
         if (step16 % 4 === 2) {
           this.playCrispHat(now, true);
         } else if (step16 % 2 === 1) {
           this.playCrispHat(now, false);
         }
-        // Bouncy bassline on offbeats
         if (step16 % 4 === 2) {
           this.playBouncyBass(now, currentChord[0] / 2);
         }
-      } else if (this.currentTrackId === "phonk-energy-808") {
-        // Phonk Trap Beat
-        if (step16 === 0 || step16 === 6 || step16 === 10) {
+        if (this.currentTrackId === "minimal-deep-tech" && step16 % 4 === 1) {
+          this.playBrightPluck(now, currentChord[1]);
+        }
+      } else if (this.currentTrackId === "phonk-energy-808" || this.currentTrackId === "balkan-turbo-phonk") {
+        // Phonk Trap & Balkan Turbo
+        const isBalkan = this.currentTrackId === "balkan-turbo-phonk";
+        if (isBalkan ? step16 % 4 === 0 : (step16 === 0 || step16 === 6 || step16 === 10)) {
           this.playPunchyKick(now);
           this.play808Sub(now, currentChord[0] / 2);
         }
-        // Snare on 4 and 12
         if (step16 === 4 || step16 === 12) {
           this.playSnareClap(now);
         }
-        // Fast 16th hi-hats
         if (step16 % 2 === 0 || step16 === 14 || step16 === 15) {
           this.playCrispHat(now, false);
         }
-        // Cowbell hook
-        if (step16 === 2 || step16 === 5 || step16 === 8 || step16 === 11) {
+        // Rapid cowbell melody
+        if (isBalkan ? (step16 % 2 === 0) : (step16 === 2 || step16 === 5 || step16 === 8 || step16 === 11)) {
           const cowbellNotes = [587.33, 659.25, 783.99, 880.0];
           this.playPhonkCowbell(now, cowbellNotes[step16 % cowbellNotes.length]);
         }
-      } else if (this.currentTrackId === "drill-motivation") {
-        // UK Drill / Trap
+      } else if (this.currentTrackId === "drill-motivation" || this.currentTrackId === "trap-dark-momentum") {
+        // Trap & Drill
         if (step16 === 0 || step16 === 7 || step16 === 10) {
           this.playPunchyKick(now);
           this.play808Sub(now, currentChord[0] / 2);
@@ -252,34 +349,68 @@ class AudioEngine {
         if (step16 === 6 || step16 === 14) {
           this.playSnareClap(now);
         }
-        // Triplet hi-hat feel
         if (step16 % 2 === 0 || step16 === 11 || step16 === 13) {
           this.playCrispHat(now, step16 === 6);
         }
-        // Rhythmic pluck lead
         if (step16 % 2 === 1) {
           this.playBrightPluck(now, currentChord[step16 % currentChord.length] * 2);
         }
-      } else if (this.currentTrackId === "synthwave-outrun") {
-        // Driving Synthwave: Kick on 0, 8. Snare on 4, 12.
-        if (step16 === 0 || step16 === 8) {
+      } else if (this.currentTrackId === "future-bass-drop") {
+        // Future bass bouncy rhythm
+        if (step16 === 0 || step16 === 6 || step16 === 10) {
+          this.playPunchyKick(now);
+          this.play808Sub(now, currentChord[0] / 2);
+        }
+        if (step16 === 4 || step16 === 12) {
+          this.playSnareClap(now);
+        }
+        if (step16 % 2 === 0) {
+          this.playCrispHat(now, step16 === 2);
+        }
+        if (step16 === 0 || step16 === 6 || step16 === 10) {
+          this.playBrightBrassChord(now, currentChord);
+        }
+      } else if (this.currentTrackId === "synthwave-outrun" || this.currentTrackId === "miami-nightdrive") {
+        // Driving Synthwave & Miami Funk
+        if (step16 === 0 || step16 === 8 || (this.currentTrackId === "miami-nightdrive" && step16 % 4 === 0)) {
           this.playPunchyKick(now);
         }
         if (step16 === 4 || step16 === 12) {
           this.playSnareClap(now);
         }
         if (step16 % 2 === 0) {
-          this.playCrispHat(now, false);
+          this.playCrispHat(now, step16 === 6);
         }
-        // Driving 16th rolling bass
-        this.playSynthBass(now, currentChord[0] / 2);
-
-        // Bright brass synth chords on 0 and 6
-        if (step16 === 0 || step16 === 6) {
-          this.playBrightBrassChord(now, currentChord);
+        if (this.currentTrackId === "synthwave-outrun") {
+          this.playSynthBass(now, currentChord[0] / 2);
+          if (step16 === 0 || step16 === 6) {
+            this.playBrightBrassChord(now, currentChord);
+          }
+        } else {
+          // Miami Funk slap bass & Rhodes
+          if (step16 % 4 === 2) {
+            this.playBouncyBass(now, currentChord[0] / 2);
+          }
+          if (step16 === 0 || step16 === 6) {
+            this.playRhodesChord(now, currentChord);
+          }
+        }
+      } else if (this.currentTrackId === "afrobeat-summer") {
+        // Afrobeat rhythm
+        if (step16 === 0 || step16 === 6 || step16 === 10) {
+          this.playPunchyKick(now);
+        }
+        if (step16 === 4 || step16 === 12) {
+          this.playSnareClap(now);
+        }
+        if (step16 % 2 === 1 || step16 === 2) {
+          this.playCrispHat(now, step16 === 10);
+        }
+        if (step16 % 2 === 0) {
+          this.playBrightPluck(now, currentChord[step16 % currentChord.length]);
         }
       } else {
-        // Upbeat Lofi Summer: Boom bap punch
+        // Boom Bap Hustle & Upbeat Lofi Summer
         if (step16 === 0 || step16 === 6 || step16 === 10) {
           this.playPunchyKick(now);
           this.playBouncyBass(now, currentChord[0] / 2);
@@ -290,7 +421,6 @@ class AudioEngine {
         if (step16 % 2 === 0) {
           this.playCrispHat(now, step16 === 4 || step16 === 12);
         }
-        // Warm sunny electric piano chords
         if (step16 === 0 || step16 === 6) {
           this.playRhodesChord(now, currentChord);
         }
