@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type CSSProperties } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SlideRenderer } from "./SlideRenderer";
 import type { Slide, AspectRatio } from "@/types/carousel";
@@ -12,6 +12,7 @@ interface CarouselPreviewProps {
   activeIndex: number;
   onActiveChange: (index: number) => void;
   showSafeZones?: boolean;
+  onQuickEdit?: (index: number) => void;
 }
 
 export function CarouselPreview({
@@ -20,6 +21,7 @@ export function CarouselPreview({
   activeIndex,
   onActiveChange,
   showSafeZones = false,
+  onQuickEdit,
 }: CarouselPreviewProps) {
   const slide = slides[activeIndex];
   const [prevIndex, setPrevIndex] = useState(activeIndex);
@@ -65,7 +67,9 @@ export function CarouselPreview({
         {/* Slide fills the padded inner area */}
         <div
           key={slide.id}
-          className="oc-slide-in relative w-full h-full"
+          onDoubleClick={() => onQuickEdit?.(activeIndex)}
+          title="Double-cliquez pour éditer le texte"
+          className="oc-slide-in relative w-full h-full cursor-pointer group"
           style={{ "--oc-slide-from": `${direction}px` } as CSSProperties}
         >
           <SlideRenderer
@@ -74,6 +78,21 @@ export function CarouselPreview({
             showSafeZones={showSafeZones}
             style={{ width: "100%", height: "100%" }}
           />
+
+          {/* Floating Quick Edit Button on Hover */}
+          {onQuickEdit && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onQuickEdit(activeIndex);
+              }}
+              className="absolute top-3 right-3 z-20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface/95 border border-border shadow-lg text-xs font-medium text-foreground hover:border-accent hover:text-accent backdrop-blur"
+              title="Éditer les textes ou le code sans l'IA"
+            >
+              <Pencil className="h-3.5 w-3.5 text-accent" />
+              <span>Éditer le texte</span>
+            </button>
+          )}
         </div>
 
         {/* Right arrow */}

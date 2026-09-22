@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useRef, use } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Trash2, Grid3X3, Bookmark, Maximize2, Check, CheckCircle2, Clock } from "lucide-react";
+import { Trash2, Grid3X3, Bookmark, Maximize2, Check, CheckCircle2, Clock, Pencil, Film } from "lucide-react";
 import { TopBar } from "@/components/layout/TopBar";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -16,6 +16,8 @@ import { CaptionPanel } from "@/components/editor/CaptionPanel";
 import { FullscreenPreview } from "@/components/editor/FullscreenPreview";
 import { BrandSetup } from "@/components/brand/BrandSetup";
 import { MusicPlayer } from "@/components/editor/MusicPlayer";
+import { QuickEditSlideModal } from "@/components/editor/QuickEditSlideModal";
+import { ReelExportDialog } from "@/components/editor/ReelExportDialog";
 import type { Carousel, AspectRatio } from "@/types/carousel";
 import type { BrandConfig } from "@/types/brand";
 
@@ -37,6 +39,8 @@ export default function CarouselEditorPage({ params }: PageProps) {
   const [showBrandSetup, setShowBrandSetup] = useState(false);
   const [brand, setBrand] = useState<BrandConfig | null>(null);
   const [templateSaved, setTemplateSaved] = useState(false);
+  const [showQuickEdit, setShowQuickEdit] = useState(false);
+  const [showReelExport, setShowReelExport] = useState(false);
 
   // Confirm dialog state
   const [confirmState, setConfirmState] = useState<{
@@ -74,6 +78,17 @@ export default function CarouselEditorPage({ params }: PageProps) {
       // ignore network errors
     }
   }, [id]);
+
+  const handleSaveQuickEdit = useCallback(async (slideId: string, updatedHtml: string) => {
+    const res = await fetch(`/api/carousels/${id}/slides/${slideId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ html: updatedHtml }),
+    });
+    if (res.ok) {
+      await fetchCarousel();
+    }
+  }, [id, fetchCarousel]);
 
   // Initial data load
   useEffect(() => {
@@ -387,7 +402,30 @@ export default function CarouselEditorPage({ params }: PageProps) {
                 </>
               )}
             </button>
+            {carousel.slides.length > 0 && (
+              <Button
+                variant={showQuickEdit ? "accent" : "ghost"}
+                size="sm"
+                onClick={() => setShowQuickEdit(true)}
+                className="text-xs gap-1.5 text-muted-foreground hover:text-foreground"
+                title="Édition Rapide de la slide active"
+              >
+                <Pencil className="h-3.5 w-3.5 text-accent" />
+                <span className="hidden sm:inline">Éditer Slide</span>
+              </Button>
+            )}
             <MusicPlayer />
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowReelExport(true)}
+              disabled={carousel.slides.length === 0}
+              className="text-xs gap-1.5 border-accent/40 text-accent hover:bg-accent/10 shadow-xs"
+              title="Générer une vidéo Reel 9:16 animée avec musique"
+            >
+              <Film className="h-3.5 w-3.5" />
+              <span>Reel 9:16</span>
+            </Button>
             <ExportButton
               carouselId={carousel.id}
               carouselName={carousel.name}
@@ -402,6 +440,10 @@ export default function CarouselEditorPage({ params }: PageProps) {
             activeIndex={activeSlide}
             onActiveChange={setActiveSlide}
             showSafeZones={showSafeZones}
+            onQuickEdit={(idx) => {
+              setActiveSlide(idx);
+              setShowQuickEdit(true);
+            }}
           />
 
           {/* Caption panel */}
@@ -412,6 +454,28 @@ export default function CarouselEditorPage({ params }: PageProps) {
           />
         </div>
       </div>
+
+      {/* Quick Edit Modal */}
+      {carousel.slides.length > 0 && carousel.slides[activeSlide] && (
+        <QuickEditSlideModal
+          open={showQuickEdit}
+          onOpenChange={setShowQuickEdit}
+          slideId={carousel.slides[activeSlide].id}
+          initialHtml={carousel.slides[activeSlide].html}
+          slideIndex={activeSlide}
+          aspectRatio={carousel.aspectRatio}
+          onSave={handleSaveQuickEdit}
+        />
+      )}
+
+      {/* Reel Export Dialog */}
+      <ReelExportDialog
+        open={showReelExport}
+        onOpenChange={setShowReelExport}
+        slides={carousel.slides}
+        carouselName={carousel.name}
+        carouselId={carousel.id}
+      />
 
       {/* Filmstrip */}
       <SlideFilmstrip

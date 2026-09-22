@@ -160,7 +160,7 @@
       "isTemplate": false,
       "tags": [],
       "createdAt": "2026-09-21T06:47:59.781Z",
-      "updatedAt": "2026-09-21T08:17:14.206Z",
+      "updatedAt": "2026-09-22T08:52:25.979Z",
       "caption": "Arrête d'utiliser Git comme en 2015 ! 🚀\n\nLa plupart des développeurs se limitent à git add, git commit et git push, alors que Git intègre des commandes modernes surpuissantes :\n• git switch : change de branche proprement sans risque d'écraser tes fichiers\n• git commit --amend --no-edit : répare un oubli dans ton dernier commit sans créer de commit \"fix typo\"\n• git stash push -m \"wip\" : nomme tes sauvegardes temporaires pour t'y retrouver en 1 seconde\n• git restore : annule des modifications locales ou désindexe en toute sécurité\n• git log --oneline --graph --all : visualise l'arbre de tes branches de façon limpide\n\nQuelle est la commande Git dont tu ne peux plus te passer ? Partage-la en commentaire ! 👇\n\n🔖 Sauvegarde ce carrousel pour garder ces raccourcis sous la main.\n\nAbonne-toi à @LeDevCodeur pour 1 astuce dev chaque jour. 🔥",
       "hashtags": [
         "git",
@@ -175,7 +175,8 @@
         "5 commandes Git modernes que 90% des devs ignorent",
         "Arrête de te battre avec Git : ces 5 commandes changent tout",
         "Le terminal Git comme un Senior : 5 commandes magiques"
-      ]
+      ],
+      "scheduledFor": "2026-09-25"
     },
     {
       "id": "099250db-0cdb-40d6-9438-878b6a7f6a7c",
@@ -762,7 +763,7 @@
       "isTemplate": false,
       "tags": [],
       "createdAt": "2026-09-21T07:44:05.761Z",
-      "updatedAt": "2026-09-21T07:44:05.832Z",
+      "updatedAt": "2026-09-22T08:52:26.183Z",
       "caption": "Que se passe-t-il vraiment en coulisses quand tu tapes google.com dans ton navigateur ? 🌐\n\nVoici le fonctionnement fascinant du DNS résumé en 60 secondes :\n• L'annuaire du Web : Les machines ne parlent qu'en IP, le DNS traduit les noms en 20 millisecondes\n• Les 4 étapes d'une requête : Résolveur DNS → Serveurs Racine (.) → Serveur TLD (.com) → Serveur autoritaire\n• Les 4 records vitaux : Type A (IPv4), CNAME (alias), MX (emails) et TXT (sécurité SPF/DKIM)\n• Le piège du TTL : pourquoi ton changement d'IP met parfois 24h et l'astuce pour migrer sans coupure\n• Les commandes de diagnostic à tester dans ton terminal : dig mondomaine.com et nslookup\n\nAs-tu déjà galéré avec une propagation DNS qui n'en finissait pas ? Dis-le moi en commentaire ! 👇\n\n🔖 Sauvegarde ce carrousel pour ta prochaine mise en production.\n\nAbonne-toi à @LeDevCodeur pour 1 concept tech vulgarisé chaque jour. 🔥",
       "hashtags": [
         "dns",
@@ -775,7 +776,8 @@
         "Que se passe-t-il quand tu tapes google.com dans ton navigateur ?",
         "Comment fonctionne le DNS d'Internet en 60s (L'annuaire mondial)",
         "Pourquoi ton site met 24h à propager ? (Le piège du TTL DNS)"
-      ]
+      ],
+      "scheduledFor": "2026-10-03"
     },
     {
       "id": "3b35c57f-5578-4f7f-914c-e6164ead7286",
@@ -1282,7 +1284,8 @@
       "isTemplate": false,
       "tags": [],
       "createdAt": "2026-09-21T08:17:59.729Z",
-      "updatedAt": "2026-09-21T08:17:59.759Z"
+      "updatedAt": "2026-09-22T08:52:26.311Z",
+      "scheduledFor": "2026-10-10"
     }
   ]
 }

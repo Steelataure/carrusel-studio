@@ -26,6 +26,7 @@ export interface Carousel {
   referenceImages: ReferenceImage[];
   status?: CarouselStatus;
   publishedAt?: string | null;
+  scheduledFor?: string | null;
   caption?: string;
   hashtags?: string[];
   alternativeTitles?: string[];

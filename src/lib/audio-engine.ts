@@ -76,6 +76,14 @@ class AudioEngine {
     return this.currentTrackId;
   }
 
+  public getMediaStreamDestination(): MediaStreamAudioDestinationNode | null {
+    this.initContext();
+    if (!this.ctx || !this.masterGain) return null;
+    const dest = this.ctx.createMediaStreamDestination();
+    this.masterGain.connect(dest);
+    return dest;
+  }
+
   public play(trackId?: string) {
     this.initContext();
     if (trackId) {
