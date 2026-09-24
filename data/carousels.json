@@ -11,6 +11,41 @@
           "previousVersions": [],
           "order": 0,
           "notes": "Slide 1 Hook"
+        },
+        {
+          "id": "rest-slide-2",
+          "order": 1,
+          "notes": "Slide 2 - Les 4 verbes fondamentaux",
+          "previousVersions": [],
+          "html": "<div style=\"width:1080px;height:1350px;background:#0A0A0F;color:#F8FAFC;font-family:'Space Grotesk',sans-serif;display:flex;flex-direction:column;justify-content:center;padding:90px;\">\n        <div style=\"color:#22D3EE;font-size:24px;font-weight:700;margin-bottom:16px;text-transform:uppercase;letter-spacing:2px;\">01. Les Verbes HTTP</div>\n        <h2 style=\"font-size:54px;font-weight:800;line-height:1.2;margin-bottom:40px;\">4 méthodes pour tout contrôler</h2>\n        <div style=\"display:flex;flex-direction:column;gap:20px;\">\n          <div style=\"background:rgba(34,211,238,0.1);border:1px solid rgba(34,211,238,0.3);padding:24px 30px;border-radius:16px;\">\n            <span style=\"color:#22D3EE;font-weight:800;font-size:28px;font-family:'JetBrains Mono',monospace;\">GET</span>\n            <span style=\"font-size:24px;color:#94A3B8;margin-left:20px;\">Récupérer une ressource</span>\n          </div>\n          <div style=\"background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.3);padding:24px 30px;border-radius:16px;\">\n            <span style=\"color:#10B981;font-weight:800;font-size:28px;font-family:'JetBrains Mono',monospace;\">POST</span>\n            <span style=\"font-size:24px;color:#94A3B8;margin-left:20px;\">Créer une nouvelle entité</span>\n          </div>\n          <div style=\"background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.3);padding:24px 30px;border-radius:16px;\">\n            <span style=\"color:#F59E0B;font-weight:800;font-size:28px;font-family:'JetBrains Mono',monospace;\">PUT / PATCH</span>\n            <span style=\"font-size:24px;color:#94A3B8;margin-left:20px;\">Mettre à jour</span>\n          </div>\n          <div style=\"background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);padding:24px 30px;border-radius:16px;\">\n            <span style=\"color:#EF4444;font-weight:800;font-size:28px;font-family:'JetBrains Mono',monospace;\">DELETE</span>\n            <span style=\"font-size:24px;color:#94A3B8;margin-left:20px;\">Supprimer définitivement</span>\n          </div>\n        </div>\n      </div>"
+        },
+        {
+          "id": "rest-slide-3",
+          "order": 2,
+          "notes": "Slide 3 - Naming & URLs",
+          "previousVersions": [],
+          "html": "<div style=\"width:1080px;height:1350px;background:#0A0A0F;color:#F8FAFC;font-family:'Space Grotesk',sans-serif;display:flex;flex-direction:column;justify-content:center;padding:90px;\">\n        <div style=\"color:#A855F7;font-size:24px;font-weight:700;margin-bottom:16px;text-transform:uppercase;letter-spacing:2px;\">02. Naming & URLs</div>\n        <h2 style=\"font-size:54px;font-weight:800;line-height:1.2;margin-bottom:40px;\">Utilise des noms pluriels, jamais de verbes</h2>\n        <div style=\"background:#12131C;border:1px solid rgba(239,68,68,0.3);padding:28px;border-radius:16px;margin-bottom:24px;\">\n          <div style=\"color:#EF4444;font-weight:700;font-size:22px;margin-bottom:8px;\">❌ À NE PAS FAIRE</div>\n          <div style=\"font-family:'JetBrains Mono',monospace;font-size:26px;color:#CBD5E1;\">POST /getUserData?id=42</div>\n        </div>\n        <div style=\"background:#12131C;border:1px solid rgba(16,185,129,0.3);padding:28px;border-radius:16px;\">\n          <div style=\"color:#10B981;font-weight:700;font-size:22px;margin-bottom:8px;\">✅ RECOMMANDÉ (REST)</div>\n          <div style=\"font-family:'JetBrains Mono',monospace;font-size:26px;color:#22D3EE;\">GET /api/v1/users/42</div>\n        </div>\n      </div>"
+        },
+        {
+          "id": "rest-slide-4",
+          "order": 3,
+          "notes": "Slide 4 - Statuts de réponse",
+          "previousVersions": [],
+          "html": "<div style=\"width:1080px;height:1350px;background:#0A0A0F;color:#F8FAFC;font-family:'Space Grotesk',sans-serif;display:flex;flex-direction:column;justify-content:center;padding:90px;\">\n        <div style=\"color:#22D3EE;font-size:24px;font-weight:700;margin-bottom:16px;text-transform:uppercase;letter-spacing:2px;\">03. Statuts de réponse</div>\n        <h2 style=\"font-size:54px;font-weight:800;line-height:1.2;margin-bottom:40px;\">Ne renvoie JAMAIS 200 avec une erreur !</h2>\n        <div style=\"display:flex;flex-direction:column;gap:18px;\">\n          <div style=\"display:flex;align-items:center;background:#12131C;padding:22px 28px;border-radius:14px;border:1px solid rgba(255,255,255,0.06);\">\n            <span style=\"font-family:'JetBrains Mono',monospace;font-size:32px;font-weight:800;color:#10B981;width:140px;\">200/201</span>\n            <span style=\"font-size:24px;color:#94A3B8;\">Succès / Ressource créée</span>\n          </div>\n          <div style=\"display:flex;align-items:center;background:#12131C;padding:22px 28px;border-radius:14px;border:1px solid rgba(255,255,255,0.06);\">\n            <span style=\"font-family:'JetBrains Mono',monospace;font-size:32px;font-weight:800;color:#F59E0B;width:140px;\">400/422</span>\n            <span style=\"font-size:24px;color:#94A3B8;\">Payload invalide / validation</span>\n          </div>\n          <div style=\"display:flex;align-items:center;background:#12131C;padding:22px 28px;border-radius:14px;border:1px solid rgba(255,255,255,0.06);\">\n            <span style=\"font-family:'JetBrains Mono',monospace;font-size:32px;font-weight:800;color:#EF4444;width:140px;\">401/403</span>\n            <span style=\"font-size:24px;color:#94A3B8;\">Non authentifié vs interdit</span>\n          </div>\n          <div style=\"display:flex;align-items:center;background:#12131C;padding:22px 28px;border-radius:14px;border:1px solid rgba(255,255,255,0.06);\">\n            <span style=\"font-family:'JetBrains Mono',monospace;font-size:32px;font-weight:800;color:#DC2626;width:140px;\">500</span>\n            <span style=\"font-size:24px;color:#94A3B8;\">Crash serveur inattendu</span>\n          </div>\n        </div>\n      </div>"
+        },
+        {
+          "id": "rest-slide-5",
+          "order": 4,
+          "notes": "Slide 5 - Pagination & Filtres",
+          "previousVersions": [],
+          "html": "<div style=\"width:1080px;height:1350px;background:#0A0A0F;color:#F8FAFC;font-family:'Space Grotesk',sans-serif;display:flex;flex-direction:column;justify-content:center;padding:90px;\">\n        <div style=\"color:#22D3EE;font-size:24px;font-weight:700;margin-bottom:16px;text-transform:uppercase;letter-spacing:2px;\">04. Performance</div>\n        <h2 style=\"font-size:54px;font-weight:800;line-height:1.2;margin-bottom:30px;\">Pagine TOUJOURS tes listes</h2>\n        <p style=\"font-size:26px;color:#94A3B8;line-height:1.5;margin-bottom:36px;\">Ne renvoie jamais 10 000 lignes dans une seule requête. Utilise des query params standardisés.</p>\n        <div style=\"background:#12131C;border:1px solid rgba(34,211,238,0.3);padding:28px;border-radius:16px;\">\n          <div style=\"font-family:'JetBrains Mono',monospace;font-size:24px;color:#22D3EE;\">GET /api/v1/posts?page=1&limit=20&sort=-createdAt</div>\n        </div>\n      </div>"
+        },
+        {
+          "id": "rest-slide-6",
+          "order": 5,
+          "notes": "Slide 6 - CTA",
+          "previousVersions": [],
+          "html": "<div style=\"width:1080px;height:1350px;background:#0A0A0F;color:#22D3EE;font-family:'Space Grotesk',sans-serif;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:80px;text-align:center;\">\n        <div style=\"font-size:64px;margin-bottom:20px;\">⚡</div>\n        <h2 style=\"font-size:60px;font-weight:800;color:#F8FAFC;line-height:1.2;margin-bottom:20px;\">Enregistre ce post pour ton prochain dev</h2>\n        <p style=\"font-size:28px;color:#94A3B8;max-width:700px;margin-bottom:50px;\">Un doute sur un verbe ou un code HTTP ? Reviens dessus en 1 seconde.</p>\n        <div style=\"background:rgba(34,211,238,0.15);border:1px solid #22D3EE;color:#22D3EE;padding:18px 40px;border-radius:50px;font-size:26px;font-weight:700;\">@DevCodeur • Abonne-toi</div>\n      </div>"
         }
       ],
       "referenceImages": [],
@@ -1015,7 +1050,7 @@
       "isTemplate": false,
       "tags": [],
       "createdAt": "2026-09-21T08:08:03.889Z",
-      "updatedAt": "2026-09-22T11:12:01.076Z",
+      "updatedAt": "2026-09-23T08:00:41.298Z",
       "caption": "Pourquoi ton site web met 4 secondes à s'afficher alors que tes utilisateurs fuient après 2s ? ⚡\n\nVoici les 5 tueurs de performance Web à éliminer dès aujourd'hui :\n• Images non compressées : 60% du poids d'une page ! Passe en WebP/AVIF avec loading=\"lazy\" et dimensions fixes\n• Polices bloquantes : utilise font-display: swap et héberge tes fichiers de police en WOFF2 localement\n• Bundle JavaScript obèse : arrête d'importer tout Lodash pour 1 seule méthode, privilégie le tree-shaking\n• Pas de CDN Edge : sers tes assets statiques au plus près des utilisateurs via Cloudflare/Vercel (15ms vs 300ms)\n• La boîte à outils de diagnostic : PageSpeed Insights, Bundle Analyzer, WebPageTest et Lighthouse\n\nQuel est le score Lighthouse actuel de ton site ? Partage ton chiffre en commentaire ! 👇\n\n🔖 Sauvegarde ce guide pour optimiser ton prochain projet web.\n\nAbonne-toi à @LeDevCodeur pour 1 astuce dev chaque jour. 🔥",
       "hashtags": [
         "webperf",
@@ -1028,7 +1063,9 @@
         "Pourquoi ton site met 4 secondes à charger ? (5 erreurs à éliminer)",
         "Passe ton score Lighthouse à 100/100 avec ces 5 optimisations web",
         "Les 5 tueurs de performance Web qui font fuir tes utilisateurs"
-      ]
+      ],
+      "status": "published",
+      "publishedAt": "2026-09-23T08:00:40.829Z"
     },
     {
       "id": "df3772f5-9055-4068-b2d7-8f6696a572b1",

@@ -12,10 +12,14 @@ import {
   X,
   Sliders,
   VolumeX,
+  Volume2,
   Upload,
   Trash2,
   TrendingUp,
   Clock,
+  RotateCcw,
+  AlertCircle,
+  Eye,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -24,6 +28,8 @@ import {
   getRecommendedTrack,
   TrackCategory,
 } from "@/lib/audio-engine";
+import { SlideRenderer } from "./SlideRenderer";
+import fixWebmDuration from "fix-webm-duration";
 import type { Slide } from "@/types/carousel";
 
 interface ReelExportDialogProps {
@@ -70,8 +76,115 @@ export function ReelExportDialog({
   const [previewCurrentTime, setPreviewCurrentTime] = useState(0);
   const [previewDuration, setPreviewDuration] = useState(0);
 
+  // Live Interactive Reel Player State
+  const [previewMode, setPreviewMode] = useState<"live" | "hd">("live");
+  const [livePlaying, setLivePlaying] = useState(false);
+  const [liveTimeMs, setLiveTimeMs] = useState(0);
+  const [liveAudioMuted, setLiveAudioMuted] = useState(false);
+  const liveAnimRef = useRef<number | null>(null);
+  const lastTickRef = useRef<number | null>(null);
+
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const videoPreviewRef = useRef<HTMLVideoElement | null>(null);
+
+  // Precise timing calculations
+  const staticDurationMs = slideDurationSec * 1000;
+  const transitionDurationMs = 500; // 0.5s transition
+  const totalSlides = Math.max(1, slides.length);
+  const slideCycleMs = staticDurationMs + transitionDurationMs;
+  const totalDurationMs =
+    (totalSlides - 1) * slideCycleMs + (staticDurationMs + transitionDurationMs);
+  const totalDurationSec = Math.round(totalDurationMs / 1000);
+
+  // Detect slide ratio
+  const currentRatio = useMemo(() => {
+    const firstSlideHtml = slides[0]?.html || "";
+    if (firstSlideHtml.includes("height:1350px") || firstSlideHtml.includes("height: 1350px"))
+      return "4:5";
+    if (firstSlideHtml.includes("height:1080px") || firstSlideHtml.includes("height: 1080px"))
+      return "1:1";
+    if (firstSlideHtml.includes("height:1920px") || firstSlideHtml.includes("height: 1920px"))
+      return "9:16";
+    return "4:5";
+  }, [slides]);
+
+  // Current active slide in live player
+  const currentSlideIndex = Math.min(totalSlides - 1, Math.floor(liveTimeMs / slideCycleMs));
+  const timeIntoSlide = liveTimeMs - currentSlideIndex * slideCycleMs;
+  const isTransitioning =
+    currentSlideIndex < totalSlides - 1 && timeIntoSlide >= staticDurationMs;
+  const transitionProgress = isTransitioning
+    ? Math.min(1, (timeIntoSlide - staticDurationMs) / transitionDurationMs)
+    : 0;
+  const nextSlideIndex = Math.min(totalSlides - 1, currentSlideIndex + 1);
+
+  const currentSlide = slides[currentSlideIndex];
+  const nextSlide = slides[nextSlideIndex];
+
+  // Helper format time (mm:ss)
+  const formatTime = (seconds: number): string => {
+    if (!isFinite(seconds) || isNaN(seconds) || seconds < 0) return "00:00";
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+  };
+
+  const effectiveDuration =
+    previewDuration && isFinite(previewDuration) && previewDuration > 0
+      ? previewDuration
+      : totalDurationSec;
+
+  // Live player frame loop (plays through all slides for the full duration)
+  useEffect(() => {
+    if (!open || !livePlaying || previewMode !== "live") {
+      lastTickRef.current = null;
+      if (liveAnimRef.current) cancelAnimationFrame(liveAnimRef.current);
+      return;
+    }
+
+    const onFrame = (now: number) => {
+      if (lastTickRef.current !== null) {
+        const delta = now - lastTickRef.current;
+        setLiveTimeMs((prev) => {
+          const next = prev + delta;
+          if (next >= totalDurationMs) {
+            return 0; // Smooth seamless loop of the entire video
+          }
+          return next;
+        });
+      }
+      lastTickRef.current = now;
+      liveAnimRef.current = requestAnimationFrame(onFrame);
+    };
+
+    liveAnimRef.current = requestAnimationFrame(onFrame);
+    return () => {
+      if (liveAnimRef.current) cancelAnimationFrame(liveAnimRef.current);
+    };
+  }, [open, livePlaying, previewMode, totalDurationMs]);
+
+  // Live Audio sync with the live preview
+  useEffect(() => {
+    if (!open || previewMode !== "live" || !livePlaying || liveAudioMuted) {
+      if (audioEngine) audioEngine.stop();
+      if (customPreviewAudioRef.current) customPreviewAudioRef.current.pause();
+      setIsPlayingCustom(false);
+      setPlayingPreviewTrack(null);
+      return;
+    }
+
+    if (selectedTrack === "custom" && customPreviewAudioRef.current) {
+      const dur = customPreviewAudioRef.current.duration || 30;
+      customPreviewAudioRef.current.currentTime = (liveTimeMs / 1000) % dur;
+      customPreviewAudioRef.current
+        .play()
+        .then(() => setIsPlayingCustom(true))
+        .catch(() => {});
+    } else if (selectedTrack !== "none" && audioEngine) {
+      audioEngine.play(selectedTrack);
+      setPlayingPreviewTrack(selectedTrack);
+    }
+  }, [open, previewMode, livePlaying, liveAudioMuted, selectedTrack, customAudioUrl]);
 
   // Clean up blob URL on unmount or new generation
   useEffect(() => {
@@ -108,9 +221,12 @@ export function ReelExportDialog({
     return unsub;
   }, []);
 
-  // Stop audio playback when modal closes or unmounts
+  // Stop audio playback and reset live player when modal closes or unmounts
   useEffect(() => {
     if (!open) {
+      setLivePlaying(false);
+      setLiveTimeMs(0);
+      setIsPlayingPreview(false);
       if (audioEngine) audioEngine.stop();
       if (customPreviewAudioRef.current) customPreviewAudioRef.current.pause();
       setIsPlayingCustom(false);
@@ -501,8 +617,8 @@ export function ReelExportDialog({
       // Ensure canvas has the initial frame captured
       drawReelFrame(0, 0, false, 0);
 
-      // Start recorder and custom audio in sync
-      recorder.start(100);
+      // Start recorder with 1-second chunks to prevent micro-fragmentation bugs in Chromium
+      recorder.start(1000);
       if (customAudioPlaybackEl) {
         try { await customAudioPlaybackEl.play(); } catch {}
       }
@@ -577,10 +693,24 @@ export function ReelExportDialog({
         customAudioCtx = null;
       }
 
-      const blob = await recordPromise;
-      const url = URL.createObjectURL(blob);
-      setVideoBlob(blob);
+      const rawBlob = await recordPromise;
+      let finalBlob = rawBlob;
+
+      // Fix WebM duration header so Chromium/browsers never report duration as Infinity or loop prematurely
+      if (mimeType.includes("webm")) {
+        try {
+          finalBlob = await fixWebmDuration(rawBlob, totalDurationMs);
+        } catch (webmErr) {
+          console.warn("Could not patch WebM duration header:", webmErr);
+        }
+      }
+
+      const url = URL.createObjectURL(finalBlob);
+      setVideoBlob(finalBlob);
       setVideoUrl(url);
+      setPreviewMode("hd"); // Switch immediately to the HD Video view
+      setPreviewDuration(totalDurationSec);
+      setPreviewCurrentTime(0);
       setProgress(100);
       setStatusText("Prêt !");
     } catch (err) {
@@ -680,38 +810,52 @@ export function ReelExportDialog({
                   {slideDurationSec}s / slide
                 </span>
               </div>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-5 gap-1.5">
                 {[
-                  { sec: 2, label: "2 secondes", sub: "Dynamique" },
-                  { sec: 3, label: "3 secondes", sub: "Idéal • Recommandé" },
-                  { sec: 4, label: "4 secondes", sub: "Posé • Détaillé" },
+                  { sec: 2, label: "2s", sub: "TikTok" },
+                  { sec: 3, label: "3s", sub: "Recommandé" },
+                  { sec: 4, label: "4s", sub: "Posé" },
+                  { sec: 5, label: "5s", sub: "Détaillé" },
+                  { sec: 6, label: "6s", sub: "Tutoriel" },
                 ].map(({ sec, label, sub }) => (
                   <button
                     key={sec}
                     type="button"
-                    onClick={() => setSlideDurationSec(sec)}
-                    className={`py-2 px-2.5 rounded-lg border text-left transition-all cursor-pointer ${
+                    onClick={() => {
+                      setSlideDurationSec(sec);
+                      setLiveTimeMs(0);
+                    }}
+                    className={`py-2 px-1 rounded-lg border text-center transition-all cursor-pointer ${
                       slideDurationSec === sec
-                        ? "border-accent bg-accent/10 text-accent shadow-xs ring-1 ring-accent/30"
+                        ? "border-accent bg-accent/10 text-accent shadow-xs ring-1 ring-accent/30 font-bold"
                         : "border-border text-muted-foreground hover:border-accent/40 bg-surface/30"
                     }`}
                   >
                     <div className="text-xs font-bold leading-tight">{label}</div>
-                    <div className="text-[10px] text-muted-foreground mt-0.5">{sub}</div>
+                    <div className="text-[9px] text-muted-foreground mt-0.5 truncate">{sub}</div>
                   </button>
                 ))}
               </div>
               <div className="flex items-center justify-between p-2.5 rounded-xl bg-accent/5 border border-accent/15 text-xs">
                 <div className="flex items-center gap-1.5 text-foreground">
-                  <span className="text-accent font-bold">⏱️ Durée totale de la vidéo :</span>
+                  <span className="text-accent font-bold">⏱️ Durée totale du Reel :</span>
                   <span className="font-bold text-accent font-mono text-sm">
-                    {Math.round(((slides.length - 1) * (slideDurationSec * 1000 + 500) + (slideDurationSec * 1000 + 500)) / 1000)}s
+                    {totalDurationSec}s
                   </span>
                 </div>
                 <span className="text-[11px] text-muted-foreground">
-                  {slides.length} slides × {slideDurationSec}s + transitions
+                  {slides.length} {slides.length > 1 ? "slides" : "slide"} × {slideDurationSec}s + transitions
                 </span>
               </div>
+
+              {slides.length === 1 && (
+                <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs flex items-center gap-2">
+                  <AlertCircle className="h-4 w-4 shrink-0 text-amber-400" />
+                  <span className="text-[11px]">
+                    1 seule slide dans ce carrousel ({slideDurationSec}s). Choisissez 5s ou 6s pour allonger la vidéo ou ajoutez des slides dans l&apos;éditeur.
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* Transition Style with Live Preview */}
@@ -1195,68 +1339,363 @@ export function ReelExportDialog({
 
           {/* Right Video Preview Screen */}
           <div className="w-full md:w-[380px] bg-background/60 p-6 flex flex-col items-center justify-center shrink-0">
-            {videoUrl ? (
-              <div className="flex flex-col items-center w-full max-w-[270px]">
-                <div className="relative rounded-2xl overflow-hidden border-2 border-accent/40 shadow-2xl bg-black aspect-[9/16] w-full">
-                  <video
-                    ref={videoPreviewRef}
-                    src={videoUrl}
-                    controls={false}
-                    loop
-                    playsInline
-                    className="w-full h-full object-cover"
-                    onClick={togglePreviewPlay}
-                    onTimeUpdate={(e) => setPreviewCurrentTime(e.currentTarget.currentTime)}
-                    onLoadedMetadata={(e) => setPreviewDuration(e.currentTarget.duration)}
-                  />
-
-                  {/* Overlay Play/Pause Button */}
-                  <button
-                    onClick={togglePreviewPlay}
-                    className="absolute inset-0 m-auto h-12 w-12 rounded-full bg-black/60 backdrop-blur-sm border border-white/20 flex items-center justify-center text-white opacity-0 hover:opacity-100 transition-opacity cursor-pointer"
-                  >
-                    {isPlayingPreview ? (
-                      <Pause className="h-5 w-5" />
-                    ) : (
-                      <Play className="h-5 w-5 fill-current ml-0.5" />
-                    )}
-                  </button>
-
-                  {/* Playback time overlay indicator */}
-                  <div className="absolute bottom-2 left-2.5 right-2.5 flex items-center justify-between text-[10px] font-mono text-white/90 bg-black/60 backdrop-blur-xs px-2 py-0.5 rounded-full pointer-events-none">
-                    <span>{Math.floor(previewCurrentTime)}s</span>
-                    <div className="flex-1 mx-2 h-1 bg-white/20 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-accent transition-all duration-75"
-                        style={{
-                          width: `${Math.min(100, (previewCurrentTime / (previewDuration || Math.max(1, ((slides.length - 1) * (slideDurationSec * 1000 + 500) + (slideDurationSec * 1000 + 500)) / 1000))) * 100)}%`,
-                        }}
-                      />
-                    </div>
-                    <span>{Math.round(previewDuration || ((slides.length - 1) * (slideDurationSec * 1000 + 500) + (slideDurationSec * 1000 + 500)) / 1000)}s</span>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between w-full mt-3 text-xs text-muted-foreground">
-                  <span className="flex items-center gap-1 font-mono text-emerald-400">
-                    <Check className="h-3.5 w-3.5" /> Prêt à exporter
-                  </span>
-                  <span className="font-semibold text-foreground">
-                    Durée totale : {Math.round(previewDuration || ((slides.length - 1) * (slideDurationSec * 1000 + 500) + (slideDurationSec * 1000 + 500)) / 1000)}s
-                  </span>
-                </div>
-              </div>
-            ) : (
-              <div className="text-center p-6 text-muted-foreground max-w-[240px]">
-                <div className="w-24 h-40 border-2 border-dashed border-border rounded-xl mx-auto mb-3 flex items-center justify-center bg-surface/50">
-                  <Film className="h-8 w-8 text-muted-foreground/40" />
-                </div>
-                <p className="text-xs font-semibold text-foreground">Aperçu du Reel</p>
-                <p className="text-[11px] text-muted-foreground mt-1">
-                  Cliquez sur &quot;Générer la vidéo&quot; pour lancer le rendu haute définition.
-                </p>
+            {/* Mode Switcher when HD video exists */}
+            {videoUrl && (
+              <div className="flex items-center gap-1 p-1 bg-surface border border-border rounded-xl mb-3 shadow-xs">
+                <button
+                  type="button"
+                  onClick={() => setPreviewMode("live")}
+                  className={`px-3 py-1 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                    previewMode === "live"
+                      ? "bg-accent text-accent-foreground shadow-xs"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <Eye className="h-3.5 w-3.5" />
+                  <span>Aperçu Direct ({totalDurationSec}s)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPreviewMode("hd");
+                    setLivePlaying(false);
+                  }}
+                  className={`px-3 py-1 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                    previewMode === "hd"
+                      ? "bg-accent text-accent-foreground shadow-xs"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <Film className="h-3.5 w-3.5" />
+                  <span>Vidéo HD ({Math.round(effectiveDuration)}s)</span>
+                </button>
               </div>
             )}
+
+            {/* 9:16 Phone Mockup Player Container */}
+            <div className="flex flex-col items-center w-full max-w-[270px]">
+              <div className="relative rounded-2xl overflow-hidden border-2 border-accent/40 shadow-2xl bg-black aspect-[9/16] w-full select-none group">
+                {previewMode === "hd" && videoUrl ? (
+                  /* --- HD RECORDED VIDEO PLAYER --- */
+                  <div className="relative w-full h-full">
+                    <video
+                      ref={videoPreviewRef}
+                      src={videoUrl}
+                      controls={false}
+                      loop
+                      playsInline
+                      className="w-full h-full object-cover cursor-pointer"
+                      onClick={togglePreviewPlay}
+                      onTimeUpdate={(e) => setPreviewCurrentTime(e.currentTarget.currentTime)}
+                      onLoadedMetadata={(e) => {
+                        const d = e.currentTarget.duration;
+                        if (isFinite(d) && d > 0) {
+                          setPreviewDuration(d);
+                        } else {
+                          setPreviewDuration(totalDurationSec);
+                        }
+                      }}
+                      onEnded={() => {
+                        if (videoPreviewRef.current) {
+                          videoPreviewRef.current.currentTime = 0;
+                          videoPreviewRef.current.play().catch(() => {});
+                        }
+                      }}
+                    />
+
+                    {/* Center Overlay Play/Pause Button */}
+                    <button
+                      type="button"
+                      onClick={togglePreviewPlay}
+                      className={`absolute inset-0 m-auto h-12 w-12 rounded-full bg-black/60 backdrop-blur-sm border border-white/20 flex items-center justify-center text-white transition-opacity cursor-pointer z-30 ${
+                        isPlayingPreview ? "opacity-0 group-hover:opacity-100" : "opacity-100"
+                      }`}
+                    >
+                      {isPlayingPreview ? (
+                        <Pause className="h-5 w-5" />
+                      ) : (
+                        <Play className="h-5 w-5 fill-current ml-0.5" />
+                      )}
+                    </button>
+
+                    {/* Bottom HD Player Controls Bar */}
+                    <div className="absolute bottom-2.5 left-2.5 right-2.5 z-30 bg-black/80 backdrop-blur-md px-2.5 py-1.5 rounded-xl border border-white/10 flex flex-col gap-1.5 text-white">
+                      <div className="flex items-center justify-between text-[10px] font-mono">
+                        <span className="text-accent font-bold">
+                          {formatTime(previewCurrentTime)}
+                        </span>
+                        <span className="text-white/70">
+                          {formatTime(effectiveDuration)}
+                        </span>
+                      </div>
+
+                      {/* Scrub slider */}
+                      <input
+                        type="range"
+                        min={0}
+                        max={Math.max(1, effectiveDuration)}
+                        step={0.1}
+                        value={previewCurrentTime}
+                        onChange={(e) => {
+                          const val = Number(e.target.value);
+                          setPreviewCurrentTime(val);
+                          if (videoPreviewRef.current) {
+                            videoPreviewRef.current.currentTime = val;
+                          }
+                        }}
+                        className="w-full h-1 bg-white/20 rounded-full appearance-none cursor-pointer accent-accent"
+                      />
+
+                      <div className="flex items-center justify-between pt-0.5">
+                        <button
+                          type="button"
+                          onClick={togglePreviewPlay}
+                          className="text-[10px] font-semibold text-accent hover:underline flex items-center gap-1 cursor-pointer"
+                        >
+                          {isPlayingPreview ? (
+                            <Pause className="h-3 w-3" />
+                          ) : (
+                            <Play className="h-3 w-3 fill-current" />
+                          )}
+                          <span>{isPlayingPreview ? "Pause" : "Lecture"}</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (videoPreviewRef.current) {
+                              videoPreviewRef.current.currentTime = 0;
+                              videoPreviewRef.current.play();
+                              setIsPlayingPreview(true);
+                            }
+                          }}
+                          className="text-white/70 hover:text-white cursor-pointer"
+                          title="Recommencer la vidéo"
+                        >
+                          <RotateCcw className="h-3 w-3" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  /* --- LIVE INTERACTIVE REEL PLAYER (Plays whole duration through all slides!) --- */
+                  <div
+                    className="relative w-full h-full overflow-hidden flex flex-col cursor-pointer"
+                    onClick={() => setLivePlaying(!livePlaying)}
+                  >
+                    {/* Dark Ambient Background */}
+                    <div className="absolute inset-0 bg-[#0A0A0F]" />
+
+                    {/* Top Segmented Story / Reel Progress Bar */}
+                    <div className="absolute top-3 left-3 right-3 flex items-center gap-1 z-20">
+                      {slides.map((_, i) => {
+                        let fillP = 0;
+                        if (i < currentSlideIndex) {
+                          fillP = 1;
+                        } else if (i === currentSlideIndex) {
+                          const cycleTotal =
+                            staticDurationMs +
+                            (i < totalSlides - 1 ? transitionDurationMs : 0);
+                          fillP = Math.min(
+                            1,
+                            Math.max(0, timeIntoSlide / cycleTotal)
+                          );
+                        }
+                        return (
+                          <div
+                            key={i}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setLiveTimeMs(i * slideCycleMs);
+                            }}
+                            className="flex-1 h-1 bg-white/25 rounded-full overflow-hidden cursor-pointer hover:bg-white/40 transition-colors"
+                            title={`Slide ${i + 1}`}
+                          >
+                            <div
+                              className="h-full bg-accent transition-[width] duration-75"
+                              style={{ width: `${fillP * 100}%` }}
+                            />
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Top Badge Overlay */}
+                    <div className="absolute top-6 left-3 right-3 flex items-center justify-between z-20 pointer-events-none">
+                      <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-black/60 text-white/90 backdrop-blur-xs">
+                        Slide {currentSlideIndex + 1}/{totalSlides}
+                      </span>
+                      <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
+                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                        DIRECT
+                      </span>
+                    </div>
+
+                    {/* Active Slide Canvas Container with smooth transition */}
+                    <div className="relative w-full h-full flex items-center justify-center p-2 pt-8 pb-14">
+                      {currentSlide ? (
+                        <div
+                          className="w-full h-full flex items-center justify-center pointer-events-none transition-all duration-100"
+                          style={{
+                            opacity:
+                              transition === "fade"
+                                ? isTransitioning
+                                  ? 1 - transitionProgress
+                                  : 1
+                                : 1,
+                            transform:
+                              transition === "slide"
+                                ? `translateX(-${isTransitioning ? transitionProgress * 100 : 0}%)`
+                                : transition === "zoom"
+                                ? `scale(${1 + (Math.min(timeIntoSlide, staticDurationMs) / staticDurationMs) * 0.04})`
+                                : "none",
+                          }}
+                        >
+                          <SlideRenderer
+                            html={currentSlide.html}
+                            aspectRatio={currentRatio}
+                            className="w-full h-full max-h-full"
+                          />
+                        </div>
+                      ) : (
+                        <div className="text-muted-foreground text-xs">Aucune slide</div>
+                      )}
+
+                      {/* Transitioning Next Slide */}
+                      {isTransitioning && nextSlide && (
+                        <div
+                          className="absolute inset-0 p-2 pt-8 pb-14 flex items-center justify-center pointer-events-none transition-all duration-100"
+                          style={{
+                            opacity: transition === "fade" ? transitionProgress : 1,
+                            transform:
+                              transition === "slide"
+                                ? `translateX(${(1 - transitionProgress) * 100}%)`
+                                : "none",
+                          }}
+                        >
+                          <SlideRenderer
+                            html={nextSlide.html}
+                            aspectRatio={currentRatio}
+                            className="w-full h-full max-h-full"
+                          />
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Center Overlay Play/Pause Button */}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setLivePlaying(!livePlaying);
+                      }}
+                      className={`absolute inset-0 m-auto h-12 w-12 rounded-full bg-black/60 backdrop-blur-sm border border-white/20 flex items-center justify-center text-white transition-opacity cursor-pointer z-30 ${
+                        livePlaying ? "opacity-0 group-hover:opacity-100" : "opacity-100"
+                      }`}
+                    >
+                      {livePlaying ? (
+                        <Pause className="h-5 w-5" />
+                      ) : (
+                        <Play className="h-5 w-5 fill-current ml-0.5" />
+                      )}
+                    </button>
+
+                    {/* Bottom Controls Bar */}
+                    <div
+                      className="absolute bottom-2.5 left-2.5 right-2.5 z-30 bg-black/80 backdrop-blur-md px-2.5 py-1.5 rounded-xl border border-white/10 flex flex-col gap-1.5 text-white"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <div className="flex items-center justify-between text-[10px] font-mono">
+                        <span className="text-accent font-bold">
+                          {formatTime(liveTimeMs / 1000)}
+                        </span>
+                        <span className="text-white/70">
+                          {formatTime(totalDurationSec)}
+                        </span>
+                      </div>
+
+                      {/* Scrub slider */}
+                      <input
+                        type="range"
+                        min={0}
+                        max={Math.max(1, totalDurationMs)}
+                        step={50}
+                        value={liveTimeMs}
+                        onChange={(e) => {
+                          const val = Number(e.target.value);
+                          setLiveTimeMs(val);
+                        }}
+                        className="w-full h-1 bg-white/20 rounded-full appearance-none cursor-pointer accent-accent"
+                      />
+
+                      <div className="flex items-center justify-between pt-0.5">
+                        <button
+                          type="button"
+                          onClick={() => setLivePlaying(!livePlaying)}
+                          className="text-[10px] font-semibold text-accent hover:underline flex items-center gap-1 cursor-pointer"
+                        >
+                          {livePlaying ? (
+                            <Pause className="h-3 w-3" />
+                          ) : (
+                            <Play className="h-3 w-3 fill-current" />
+                          )}
+                          <span>{livePlaying ? "Pause" : "Lecture"}</span>
+                        </button>
+
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setLiveTimeMs(0);
+                              setLivePlaying(true);
+                            }}
+                            className="text-white/70 hover:text-white cursor-pointer"
+                            title="Recommencer depuis le début"
+                          >
+                            <RotateCcw className="h-3 w-3" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setLiveAudioMuted(!liveAudioMuted)}
+                            className="text-white/70 hover:text-white cursor-pointer"
+                            title={liveAudioMuted ? "Activer le son" : "Couper le son"}
+                          >
+                            {liveAudioMuted ? (
+                              <VolumeX className="h-3 w-3" />
+                            ) : (
+                              <Volume2 className="h-3 w-3 text-accent" />
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Status footer under phone frame */}
+              <div className="flex items-center justify-between w-full mt-3 text-xs text-muted-foreground">
+                {previewMode === "hd" && videoUrl ? (
+                  <>
+                    <span className="flex items-center gap-1 font-mono text-emerald-400">
+                      <Check className="h-3.5 w-3.5" /> Rendu HD {Math.round(effectiveDuration)}s
+                    </span>
+                    <span className="font-semibold text-foreground">
+                      Prêt pour Reels & TikTok
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <span className="flex items-center gap-1 font-mono text-cyan-400">
+                      <Eye className="h-3.5 w-3.5" /> Totalité : {totalDurationSec}s
+                    </span>
+                    <span className="font-semibold text-foreground">
+                      {slides.length} {slides.length > 1 ? "slides" : "slide"} × {slideDurationSec}s
+                    </span>
+                  </>
+                )}
+              </div>
+            </div>
           </div>
         </div>
 
@@ -1266,7 +1705,7 @@ export function ReelExportDialog({
         {/* Footer Actions */}
         <div className="px-6 py-4 border-t border-border bg-muted/20 flex items-center justify-between">
           <span className="text-xs text-muted-foreground">
-            Résolution : 1080 × 1920 (9:16 Full HD)
+            Résolution : 1080 × 1920 (9:16 Full HD) • Durée : {totalDurationSec}s
           </span>
 
           <div className="flex items-center gap-2">
@@ -1287,7 +1726,7 @@ export function ReelExportDialog({
                 className="text-xs gap-1.5 font-semibold shadow-md cursor-pointer"
               >
                 <Download className="h-4 w-4" />
-                <span>Télécharger la Vidéo ({Math.round(previewDuration || ((slides.length - 1) * (slideDurationSec * 1000 + 500) + (slideDurationSec * 1000 + 500)) / 1000)}s)</span>
+                <span>Télécharger la Vidéo ({Math.round(effectiveDuration)}s)</span>
               </Button>
             )}
           </div>
