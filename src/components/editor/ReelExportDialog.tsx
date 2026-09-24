@@ -589,20 +589,12 @@ export function ReelExportDialog({
 
       let mimeType = "video/webm";
       if (typeof MediaRecorder !== "undefined") {
-        if (exportFormat === "mp4") {
-          if (MediaRecorder.isTypeSupported("video/mp4;codecs=avc1,mp4a")) {
-            mimeType = "video/mp4;codecs=avc1,mp4a";
-          } else if (MediaRecorder.isTypeSupported("video/mp4")) {
-            mimeType = "video/mp4";
-          } else if (MediaRecorder.isTypeSupported("video/webm;codecs=vp9,opus")) {
-            mimeType = "video/webm;codecs=vp9,opus";
-          }
-        } else {
-          if (MediaRecorder.isTypeSupported("video/webm;codecs=vp9,opus")) {
-            mimeType = "video/webm;codecs=vp9,opus";
-          } else if (MediaRecorder.isTypeSupported("video/webm")) {
-            mimeType = "video/webm";
-          }
+        if (MediaRecorder.isTypeSupported("video/webm;codecs=vp9,opus")) {
+          mimeType = "video/webm;codecs=vp9,opus";
+        } else if (MediaRecorder.isTypeSupported("video/webm")) {
+          mimeType = "video/webm";
+        } else if (MediaRecorder.isTypeSupported("video/mp4")) {
+          mimeType = "video/mp4";
         }
       }
 
@@ -749,14 +741,31 @@ export function ReelExportDialog({
       const rawBlob = await recordPromise;
       let finalBlob = rawBlob;
 
-      // Fix duration headers for both MP4 and WebM so all video players report the full length (e.g. 24.5s)
-      if (mimeType.includes("mp4")) {
+      if (exportFormat === "mp4") {
+        setStatusText("Encodage MP4 universel (H.264 + AAC)...");
+        setProgress(96);
         try {
+          const formData = new FormData();
+          formData.append("file", rawBlob, "recording.webm");
+          const convertRes = await fetch("/api/video/convert-mp4", {
+            method: "POST",
+            body: formData,
+          });
+          if (convertRes.ok) {
+            const convertedBlob = await convertRes.blob();
+            if (convertedBlob && convertedBlob.size > 1000) {
+              finalBlob = convertedBlob;
+            }
+          } else {
+            console.warn("Server MP4 conversion returned non-ok, falling back to local patch");
+            finalBlob = await fixMp4Duration(rawBlob, totalDurationMs);
+          }
+        } catch (convErr) {
+          console.warn("Server MP4 conversion failed, falling back to local patch:", convErr);
           finalBlob = await fixMp4Duration(rawBlob, totalDurationMs);
-        } catch (mp4Err) {
-          console.warn("Could not patch MP4 duration header:", mp4Err);
         }
-      } else if (mimeType.includes("webm")) {
+      } else {
+        // WebM format
         try {
           finalBlob = await fixWebmDuration(rawBlob, totalDurationMs);
         } catch (webmErr) {
