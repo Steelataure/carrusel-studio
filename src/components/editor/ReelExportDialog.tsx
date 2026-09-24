@@ -30,6 +30,7 @@ import {
 } from "@/lib/audio-engine";
 import { SlideRenderer } from "./SlideRenderer";
 import fixWebmDuration from "fix-webm-duration";
+import { fixMp4Duration } from "@/lib/mp4-duration";
 import type { Slide } from "@/types/carousel";
 
 interface ReelExportDialogProps {
@@ -55,6 +56,7 @@ export function ReelExportDialog({
   );
   const [slideDurationSec, setSlideDurationSec] = useState(3);
   const [transition, setTransition] = useState<TransitionType>("fade");
+  const [exportFormat, setExportFormat] = useState<"mp4" | "webm">("mp4");
   const [selectedTrack, setSelectedTrack] = useState<string>(() => recommendedTrack.id);
   const [categoryFilter, setCategoryFilter] = useState<TrackCategory | "all">("all");
   const [playingPreviewTrack, setPlayingPreviewTrack] = useState<string | null>(null);
@@ -587,12 +589,20 @@ export function ReelExportDialog({
 
       let mimeType = "video/webm";
       if (typeof MediaRecorder !== "undefined") {
-        if (MediaRecorder.isTypeSupported("video/mp4;codecs=avc1,mp4a")) {
-          mimeType = "video/mp4;codecs=avc1,mp4a";
-        } else if (MediaRecorder.isTypeSupported("video/mp4")) {
-          mimeType = "video/mp4";
-        } else if (MediaRecorder.isTypeSupported("video/webm;codecs=vp9,opus")) {
-          mimeType = "video/webm;codecs=vp9,opus";
+        if (exportFormat === "mp4") {
+          if (MediaRecorder.isTypeSupported("video/mp4;codecs=avc1,mp4a")) {
+            mimeType = "video/mp4;codecs=avc1,mp4a";
+          } else if (MediaRecorder.isTypeSupported("video/mp4")) {
+            mimeType = "video/mp4";
+          } else if (MediaRecorder.isTypeSupported("video/webm;codecs=vp9,opus")) {
+            mimeType = "video/webm;codecs=vp9,opus";
+          }
+        } else {
+          if (MediaRecorder.isTypeSupported("video/webm;codecs=vp9,opus")) {
+            mimeType = "video/webm;codecs=vp9,opus";
+          } else if (MediaRecorder.isTypeSupported("video/webm")) {
+            mimeType = "video/webm";
+          }
         }
       }
 
@@ -627,21 +637,44 @@ export function ReelExportDialog({
       setStatusText("Enregistrement de la vidéo...");
       setProgress(50);
 
-      let startTime: number | null = null;
+      let animIntervalId: number | null = null;
 
       await new Promise<void>((resolveAnim, rejectAnim) => {
-        const renderFrame = (now: number) => {
+        let startTime: number | null = null;
+        let lastTime = performance.now();
+        let simulatedElapsed = 0;
+        let isDone = false;
+
+        const cleanup = () => {
+          isDone = true;
+          if (animIntervalId !== null) {
+            clearInterval(animIntervalId);
+            animIntervalId = null;
+          }
+          if (animFrameId !== null) {
+            cancelAnimationFrame(animFrameId);
+            animFrameId = null;
+          }
+        };
+
+        const renderStep = () => {
+          if (isDone) return;
           try {
+            const now = performance.now();
             if (startTime === null) {
               startTime = now;
+              lastTime = now;
             }
-            const elapsed = now - startTime;
-            if (elapsed >= totalDurationMs) {
-              // Final frame
-              drawReelFrame(totalSlides - 1, staticDurationMs, false, 0);
-              resolveAnim();
-              return;
-            }
+
+            const dt = Math.max(0, now - lastTime);
+            lastTime = now;
+
+            // Cap delta time at 100ms: if the user switches tabs or window pauses,
+            // we NEVER jump forward or skip slides; simulation advances steadily!
+            const cappedDt = Math.min(100, dt);
+            simulatedElapsed += cappedDt;
+
+            const elapsed = Math.min(totalDurationMs, simulatedElapsed);
 
             const currentProgress = Math.min(99, Math.round(50 + (elapsed / totalDurationMs) * 49));
             setProgress(currentProgress);
@@ -659,17 +692,37 @@ export function ReelExportDialog({
 
             drawReelFrame(slideIndex, timeIntoSlide, isTransitioning, transitionProgress);
 
-            animFrameId = requestAnimationFrame(renderFrame);
+            if (elapsed >= totalDurationMs) {
+              // Final frame holding
+              drawReelFrame(totalSlides - 1, staticDurationMs, false, 0);
+              cleanup();
+              resolveAnim();
+            }
           } catch (err) {
+            cleanup();
             rejectAnim(err);
           }
         };
 
-        animFrameId = requestAnimationFrame(renderFrame);
+        // Dual driver: rAF for smooth rendering when focused + setInterval for background tabs
+        const rAF = () => {
+          if (isDone) return;
+          renderStep();
+          animFrameId = requestAnimationFrame(rAF);
+        };
+        animFrameId = requestAnimationFrame(rAF);
+
+        animIntervalId = window.setInterval(() => {
+          if (isDone) return;
+          renderStep();
+        }, 1000 / fps);
       });
 
-      // 6. Stop recorder and audio
-      setStatusText("Finalisation...");
+      // 6. Stop recorder and audio with a safety buffer for encoder flushing
+      setStatusText("Finalisation du fichier...");
+      // Wait 250ms for MediaRecorder to consume the last drawn frame and flush pending audio
+      await new Promise((r) => setTimeout(r, 250));
+
       if (recorder.state === "recording") {
         recorder.stop();
       }
@@ -696,8 +749,14 @@ export function ReelExportDialog({
       const rawBlob = await recordPromise;
       let finalBlob = rawBlob;
 
-      // Fix WebM duration header so Chromium/browsers never report duration as Infinity or loop prematurely
-      if (mimeType.includes("webm")) {
+      // Fix duration headers for both MP4 and WebM so all video players report the full length (e.g. 24.5s)
+      if (mimeType.includes("mp4")) {
+        try {
+          finalBlob = await fixMp4Duration(rawBlob, totalDurationMs);
+        } catch (mp4Err) {
+          console.warn("Could not patch MP4 duration header:", mp4Err);
+        }
+      } else if (mimeType.includes("webm")) {
         try {
           finalBlob = await fixWebmDuration(rawBlob, totalDurationMs);
         } catch (webmErr) {
@@ -745,7 +804,8 @@ export function ReelExportDialog({
       ? carouselName.trim().replace(/[<>:"/\\|?*]/g, "").replace(/\s+/g, "-")
       : `reel-${carouselId}`;
 
-    const ext = videoBlob?.type.includes("mp4") ? "mp4" : "webm";
+    const isMp4 = videoBlob?.type.includes("mp4") || exportFormat === "mp4";
+    const ext = isMp4 ? "mp4" : "webm";
     const a = document.createElement("a");
     a.href = videoUrl;
     a.download = `${cleanTitle}-reel.${ext}`;
@@ -856,6 +916,54 @@ export function ReelExportDialog({
                   </span>
                 </div>
               )}
+            </div>
+
+            {/* Format Setting (MP4 vs WebM) */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-semibold flex items-center gap-1.5 text-foreground">
+                  <Film className="h-3.5 w-3.5 text-accent" />
+                  <span>Format de la vidéo</span>
+                </label>
+                <span className="text-[11px] font-mono text-accent uppercase font-bold">
+                  {exportFormat}
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setExportFormat("mp4")}
+                  className={`p-2.5 rounded-lg border text-left transition-all cursor-pointer ${
+                    exportFormat === "mp4"
+                      ? "border-accent bg-accent/10 text-accent font-semibold shadow-xs ring-1 ring-accent/30"
+                      : "border-border text-muted-foreground hover:border-accent/40 bg-surface/30"
+                  }`}
+                >
+                  <div className="text-xs font-bold flex items-center justify-between">
+                    <span>MP4 (H.264)</span>
+                    <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-emerald-500/15 text-emerald-400 font-semibold">
+                      Recommandé
+                    </span>
+                  </div>
+                  <div className="text-[10px] text-muted-foreground mt-0.5">
+                    Instagram Reels, TikTok & Shorts
+                  </div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setExportFormat("webm")}
+                  className={`p-2.5 rounded-lg border text-left transition-all cursor-pointer ${
+                    exportFormat === "webm"
+                      ? "border-accent bg-accent/10 text-accent font-semibold shadow-xs ring-1 ring-accent/30"
+                      : "border-border text-muted-foreground hover:border-accent/40 bg-surface/30"
+                  }`}
+                >
+                  <div className="text-xs font-bold">WebM (VP9)</div>
+                  <div className="text-[10px] text-muted-foreground mt-0.5">
+                    Haute fidélité & Navigateurs
+                  </div>
+                </button>
+              </div>
             </div>
 
             {/* Transition Style with Live Preview */}
@@ -1327,11 +1435,16 @@ export function ReelExportDialog({
               </Button>
 
               {isGenerating && (
-                <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
-                  <div
-                    className="bg-accent h-full transition-all duration-150"
-                    style={{ width: `${progress}%` }}
-                  />
+                <div className="space-y-1.5 pt-1">
+                  <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
+                    <div
+                      className="bg-accent h-full transition-all duration-150"
+                      style={{ width: `${progress}%` }}
+                    />
+                  </div>
+                  <p className="text-[10px] text-muted-foreground text-center">
+                    ⏳ Enregistrement complet ({totalDurationSec}s) en cours • Gardez cette page ouverte
+                  </p>
                 </div>
               )}
             </div>
