@@ -633,8 +633,6 @@ export function ReelExportDialog({
 
       await new Promise<void>((resolveAnim, rejectAnim) => {
         let startTime: number | null = null;
-        let lastTime = performance.now();
-        let simulatedElapsed = 0;
         let isDone = false;
 
         const cleanup = () => {
@@ -655,20 +653,12 @@ export function ReelExportDialog({
             const now = performance.now();
             if (startTime === null) {
               startTime = now;
-              lastTime = now;
             }
 
-            const dt = Math.max(0, now - lastTime);
-            lastTime = now;
+            // Real-time synchronization matching the audio track length exactly
+            const elapsed = Math.min(totalDurationMs, now - startTime);
 
-            // Cap delta time at 100ms: if the user switches tabs or window pauses,
-            // we NEVER jump forward or skip slides; simulation advances steadily!
-            const cappedDt = Math.min(100, dt);
-            simulatedElapsed += cappedDt;
-
-            const elapsed = Math.min(totalDurationMs, simulatedElapsed);
-
-            const currentProgress = Math.min(99, Math.round(50 + (elapsed / totalDurationMs) * 49));
+            const currentProgress = Math.min(99, Math.round(50 + (elapsed / totalDurationMs) * 45));
             setProgress(currentProgress);
 
             const slideIndex = Math.min(
