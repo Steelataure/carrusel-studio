@@ -589,7 +589,9 @@ export function ReelExportDialog({
 
       let mimeType = "video/webm";
       if (typeof MediaRecorder !== "undefined") {
-        if (MediaRecorder.isTypeSupported("video/webm;codecs=vp9,opus")) {
+        if (MediaRecorder.isTypeSupported("video/webm;codecs=vp8,opus")) {
+          mimeType = "video/webm;codecs=vp8,opus";
+        } else if (MediaRecorder.isTypeSupported("video/webm;codecs=vp9,opus")) {
           mimeType = "video/webm;codecs=vp9,opus";
         } else if (MediaRecorder.isTypeSupported("video/webm")) {
           mimeType = "video/webm";
@@ -600,32 +602,43 @@ export function ReelExportDialog({
 
       recorder = new MediaRecorder(combinedStream, {
         mimeType,
-        videoBitsPerSecond: 8000000, // 8 Mbps high quality
+        videoBitsPerSecond: 6000000, // 6 Mbps high quality without starving CPU/GPU
       });
 
       const recordedChunks: Blob[] = [];
       recorder.ondataavailable = (e) => {
-        if (e.data.size > 0) recordedChunks.push(e.data);
+        if (e.data && e.data.size > 0) recordedChunks.push(e.data);
       };
 
-      const recordPromise = new Promise<Blob>((resolve) => {
-        if (!recorder) return;
+      const recordPromise = new Promise<Blob>((resolve, reject) => {
+        if (!recorder) {
+          reject(new Error("Enregistreur non disponible"));
+          return;
+        }
         recorder.onstop = () => {
           const finalBlob = new Blob(recordedChunks, { type: mimeType });
           resolve(finalBlob);
+        };
+        recorder.onerror = (e) => {
+          console.error("MediaRecorder error:", e);
+          if (recordedChunks.length > 0) {
+            resolve(new Blob(recordedChunks, { type: mimeType }));
+          } else {
+            reject(new Error("Erreur lors de la capture vidéo"));
+          }
         };
       });
 
       // Ensure canvas has the initial frame captured
       drawReelFrame(0, 0, false, 0);
 
-      // Start recorder with 1-second chunks to prevent micro-fragmentation bugs in Chromium
-      recorder.start(1000);
+      // Start recorder without micro-fragmentation
+      recorder.start();
       if (customAudioPlaybackEl) {
         try { await customAudioPlaybackEl.play(); } catch {}
       }
 
-      // 5. Animate through all slides
+      // 5. Animate through all slides with a single steady 30fps driver
       setStatusText("Enregistrement de la vidéo...");
       setProgress(50);
 
@@ -634,6 +647,10 @@ export function ReelExportDialog({
       await new Promise<void>((resolveAnim, rejectAnim) => {
         let startTime: number | null = null;
         let isDone = false;
+        let lastFrameTime = 0;
+        let lastProgressUpdate = 0;
+        let lastProgressVal = 50;
+        const frameIntervalMs = 1000 / fps; // 33.33ms
 
         const cleanup = () => {
           isDone = true;
@@ -647,19 +664,24 @@ export function ReelExportDialog({
           }
         };
 
-        const renderStep = () => {
+        const renderStep = (now: number) => {
           if (isDone) return;
           try {
-            const now = performance.now();
             if (startTime === null) {
               startTime = now;
+              lastFrameTime = now;
             }
 
-            // Real-time synchronization matching the audio track length exactly
+            // Real-time synchronization matching audio
             const elapsed = Math.min(totalDurationMs, now - startTime);
 
-            const currentProgress = Math.min(99, Math.round(50 + (elapsed / totalDurationMs) * 45));
-            setProgress(currentProgress);
+            // Throttle React state updates to at most ~6 per second to prevent UI thread freeze
+            const currentProgress = Math.min(95, Math.round(50 + (elapsed / totalDurationMs) * 45));
+            if (currentProgress !== lastProgressVal && now - lastProgressUpdate > 150) {
+              lastProgressVal = currentProgress;
+              lastProgressUpdate = now;
+              setProgress(currentProgress);
+            }
 
             const slideIndex = Math.min(
               totalSlides - 1,
@@ -686,28 +708,49 @@ export function ReelExportDialog({
           }
         };
 
-        // Dual driver: rAF for smooth rendering when focused + setInterval for background tabs
-        const rAF = () => {
+        // Master driver: rAF with strict frame-rate throttling to 30fps
+        const tick = () => {
           if (isDone) return;
-          renderStep();
-          animFrameId = requestAnimationFrame(rAF);
+          const now = performance.now();
+          if (now - lastFrameTime >= frameIntervalMs - 1.5) {
+            lastFrameTime = now;
+            renderStep(now);
+          }
+          animFrameId = requestAnimationFrame(tick);
         };
-        animFrameId = requestAnimationFrame(rAF);
+        animFrameId = requestAnimationFrame(tick);
 
+        // Watchdog interval: ONLY advances if rAF is paused (tab hidden or minimized)
         animIntervalId = window.setInterval(() => {
           if (isDone) return;
-          renderStep();
-        }, 1000 / fps);
+          const now = performance.now();
+          if (now - lastFrameTime >= frameIntervalMs) {
+            lastFrameTime = now;
+            renderStep(now);
+          }
+        }, frameIntervalMs);
       });
 
-      // 6. Stop recorder and audio with a safety buffer for encoder flushing
-      setStatusText("Finalisation du fichier...");
-      // Wait 250ms for MediaRecorder to consume the last drawn frame and flush pending audio
-      await new Promise((r) => setTimeout(r, 250));
+      // 6. Stop recorder cleanly, ensuring audio context stays alive until recorder has flushed
+      setStatusText("Finalisation de la vidéo...");
+      setProgress(95);
+
+      // Wait 350ms to allow MediaRecorder to encode the final frame and audio samples
+      await new Promise((r) => setTimeout(r, 350));
 
       if (recorder.state === "recording") {
         recorder.stop();
       }
+
+      // Wait for MediaRecorder to finalize and emit all chunks
+      const rawBlob = await Promise.race([
+        recordPromise,
+        new Promise<Blob>((_, reject) =>
+          setTimeout(() => reject(new Error("Délai de finalisation dépassé (timeout)")), 12000)
+        ),
+      ]);
+
+      // Only now is it safe to tear down audio nodes without corrupting the container!
       if (stopStreamAudio) {
         try { stopStreamAudio(); } catch {}
         stopStreamAudio = null;
@@ -720,20 +763,19 @@ export function ReelExportDialog({
         audioEngine.stop();
       }
       if (customAudioPlaybackEl) {
-        customAudioPlaybackEl.pause();
+        try { customAudioPlaybackEl.pause(); } catch {}
         customAudioPlaybackEl = null;
       }
       if (customAudioCtx) {
-        customAudioCtx.close().catch(() => {});
+        try { customAudioCtx.close().catch(() => {}); } catch {}
         customAudioCtx = null;
       }
 
-      const rawBlob = await recordPromise;
       let finalBlob = rawBlob;
 
       if (exportFormat === "mp4") {
         setStatusText("Encodage MP4 universel (H.264 + AAC)...");
-        setProgress(96);
+        setProgress(97);
         try {
           const formData = new FormData();
           formData.append("file", rawBlob, "recording.webm");
@@ -745,14 +787,16 @@ export function ReelExportDialog({
             const convertedBlob = await convertRes.blob();
             if (convertedBlob && convertedBlob.size > 1000) {
               finalBlob = convertedBlob;
+            } else {
+              throw new Error("Fichier MP4 converti vide");
             }
           } else {
-            console.warn("Server MP4 conversion returned non-ok, falling back to local patch");
-            finalBlob = await fixMp4Duration(rawBlob, totalDurationMs);
+            console.warn("Server MP4 conversion returned non-ok, falling back to WebM");
+            finalBlob = await fixWebmDuration(rawBlob, totalDurationMs);
           }
         } catch (convErr) {
-          console.warn("Server MP4 conversion failed, falling back to local patch:", convErr);
-          finalBlob = await fixMp4Duration(rawBlob, totalDurationMs);
+          console.warn("Server MP4 conversion failed, falling back to WebM:", convErr);
+          finalBlob = await fixWebmDuration(rawBlob, totalDurationMs);
         }
       } else {
         // WebM format
@@ -798,17 +842,21 @@ export function ReelExportDialog({
   };
 
   const handleDownload = () => {
-    if (!videoUrl) return;
+    if (!videoUrl || !videoBlob) return;
     const cleanTitle = carouselName
       ? carouselName.trim().replace(/[<>:"/\\|?*]/g, "").replace(/\s+/g, "-")
       : `reel-${carouselId}`;
 
-    const isMp4 = videoBlob?.type.includes("mp4") || exportFormat === "mp4";
+    const isMp4 = videoBlob.type.includes("mp4");
     const ext = isMp4 ? "mp4" : "webm";
     const a = document.createElement("a");
     a.href = videoUrl;
     a.download = `${cleanTitle}-reel.${ext}`;
+    document.body.appendChild(a);
     a.click();
+    setTimeout(() => {
+      try { document.body.removeChild(a); } catch {}
+    }, 200);
   };
 
   const togglePreviewPlay = () => {

@@ -1,19 +1,30 @@
 import fs from "fs";
 import path from "path";
-import { execSync } from "child_process";
+import { execSync, execFileSync } from "child_process";
 
 let cachedFfmpegPath: string | null = null;
 
+function isExecutableFfmpeg(candidatePath: string): boolean {
+  try {
+    if (!candidatePath || !fs.existsSync(candidatePath)) return false;
+    // Verify that the executable can actually launch and not crash with missing DLLs (e.g. status 3236495362)
+    execFileSync(candidatePath, ["-version"], { timeout: 2000, stdio: "ignore" });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /**
- * Automatically locate FFmpeg on Windows, macOS, or Linux.
+ * Automatically locate a verified, working FFmpeg binary on Windows, macOS, or Linux.
  */
 export function getFfmpegPath(): string | null {
-  if (cachedFfmpegPath && fs.existsSync(cachedFfmpegPath)) {
+  if (cachedFfmpegPath && isExecutableFfmpeg(cachedFfmpegPath)) {
     return cachedFfmpegPath;
   }
 
   // 1. Explicit environment variable
-  if (process.env.FFMPEG_PATH && fs.existsSync(process.env.FFMPEG_PATH)) {
+  if (process.env.FFMPEG_PATH && isExecutableFfmpeg(process.env.FFMPEG_PATH)) {
     cachedFfmpegPath = process.env.FFMPEG_PATH;
     return cachedFfmpegPath;
   }
@@ -21,13 +32,13 @@ export function getFfmpegPath(): string | null {
   // 2. System PATH (which / where)
   try {
     const cmd = process.platform === "win32" ? "where ffmpeg" : "which ffmpeg";
-    const out = execSync(cmd, { encoding: "utf8", stdio: ["pipe", "pipe", "pipe"] })
-      .trim()
-      .split("\n")[0]
-      .trim();
-    if (out && fs.existsSync(out)) {
-      cachedFfmpegPath = out;
-      return cachedFfmpegPath;
+    const out = execSync(cmd, { encoding: "utf8", stdio: ["pipe", "pipe", "pipe"] }).trim();
+    const lines = out.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+    for (const candidate of lines) {
+      if (isExecutableFfmpeg(candidate)) {
+        cachedFfmpegPath = candidate;
+        return cachedFfmpegPath;
+      }
     }
   } catch {}
 
@@ -39,7 +50,14 @@ export function getFfmpegPath(): string | null {
       if (fs.existsSync(wingetDir)) {
         try {
           const dirs = fs.readdirSync(wingetDir);
-          for (const d of dirs) {
+          // Prioritize Essentials build over Shared build
+          const sortedDirs = dirs.sort((a, b) => {
+            if (a.toLowerCase().includes("essentials") && !b.toLowerCase().includes("essentials")) return -1;
+            if (!a.toLowerCase().includes("essentials") && b.toLowerCase().includes("essentials")) return 1;
+            return 0;
+          });
+
+          for (const d of sortedDirs) {
             if (d.toLowerCase().includes("ffmpeg")) {
               const base = path.join(wingetDir, d);
               const findExe = (dir: string, depth = 0): string | null => {
@@ -51,7 +69,7 @@ export function getFfmpegPath(): string | null {
                     const sub = findExe(full, depth + 1);
                     if (sub) return sub;
                   } else if (e.name.toLowerCase() === "ffmpeg.exe") {
-                    return full;
+                    if (isExecutableFfmpeg(full)) return full;
                   }
                 }
                 return null;
@@ -74,7 +92,7 @@ export function getFfmpegPath(): string | null {
       "C:\\ProgramData\\chocolatey\\bin\\ffmpeg.exe",
     ];
     for (const p of commonPaths) {
-      if (fs.existsSync(p)) {
+      if (isExecutableFfmpeg(p)) {
         cachedFfmpegPath = p;
         return cachedFfmpegPath;
       }

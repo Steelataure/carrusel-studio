@@ -46,10 +46,18 @@ export async function POST(request: Request) {
     await fs.promises.writeFile(inTempFile, inputBuffer);
 
     // Convert into standard H.264 (avc1) + AAC (mp4a) with +faststart
+    // -fflags +genpts and -avoid_negative_ts make_zero fix timestamp jitter from canvas.captureStream
+    // -r 30 enforces standard CFR 30fps for Instagram/TikTok/Shorts compatibility
     const args = [
       "-y",
+      "-fflags",
+      "+genpts",
+      "-avoid_negative_ts",
+      "make_zero",
       "-i",
       inTempFile,
+      "-r",
+      "30",
       "-c:v",
       "libx264",
       "-pix_fmt",
@@ -60,12 +68,14 @@ export async function POST(request: Request) {
       "aac",
       "-b:a",
       "192k",
+      "-ar",
+      "44100",
       "-movflags",
       "+faststart",
       outTempFile,
     ];
 
-    await execFileAsync(ffmpegPath, args, { timeout: 60000 });
+    await execFileAsync(ffmpegPath, args, { timeout: 120000 });
 
     const outputBuffer = await fs.promises.readFile(outTempFile);
 
