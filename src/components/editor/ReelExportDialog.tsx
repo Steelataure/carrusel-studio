@@ -329,10 +329,10 @@ export function ReelExportDialog({
     let stopStreamAudio: (() => void) | null = null;
 
     try {
-      // 1. Prepare offscreen canvas
+      // 1. Prepare canvas (connected to DOM compositor to avoid background frame dropping)
       const width = 1080;
       const height = 1920;
-      const canvas = document.createElement("canvas");
+      const canvas = canvasRef.current || document.createElement("canvas");
       canvas.width = width;
       canvas.height = height;
       const ctx = canvas.getContext("2d");
@@ -466,12 +466,14 @@ export function ReelExportDialog({
         }
         ctx.restore();
 
-        // 2. Crisp Centered Card with Easing & Shadow
+        // 2. Crisp Centered Card with Easing & Optimized Shadow
         ctx.save();
         if (!isVerticalFull) {
-          ctx.shadowColor = "rgba(0, 0, 0, 0.75)";
-          ctx.shadowBlur = 45;
-          ctx.shadowOffsetY = 15;
+          ctx.fillStyle = "rgba(0, 0, 0, 0.4)";
+          ctx.fillRect(0, currentY - 6, width, currentH + 12);
+          ctx.shadowColor = "rgba(0, 0, 0, 0.65)";
+          ctx.shadowBlur = 16;
+          ctx.shadowOffsetY = 8;
         }
 
         if (transition === "fade") {
@@ -530,10 +532,13 @@ export function ReelExportDialog({
           } else if (i === slideIndex) {
             const cycleTotal = staticDurationMs + (slideIndex < totalSlides - 1 ? transitionDurationMs : 0);
             const fillP = Math.min(1, Math.max(0, timeIntoSlide / cycleTotal));
-            ctx.fillStyle = "#22D3EE";
-            ctx.beginPath();
-            ctx.roundRect(segX, barTop, segWidth * fillP, barHeight, 2);
-            ctx.fill();
+            const fillWidth = Math.max(0, Math.min(segWidth, segWidth * fillP));
+            if (fillWidth > 2) {
+              ctx.fillStyle = "#22D3EE";
+              ctx.beginPath();
+              ctx.roundRect(segX, barTop, fillWidth, barHeight, 2);
+              ctx.fill();
+            }
           }
         }
         ctx.restore();
@@ -581,6 +586,7 @@ export function ReelExportDialog({
       // 4. Setup MediaRecorder with pre-warmed initial frame
       const fps = 30;
       const canvasStream = canvas.captureStream(fps);
+      const videoTrack = canvasStream.getVideoTracks()[0];
       const tracks = [...canvasStream.getVideoTracks()];
       if (audioStreamNode) {
         tracks.push(...audioStreamNode.stream.getAudioTracks());
@@ -631,6 +637,7 @@ export function ReelExportDialog({
 
       // Ensure canvas has the initial frame captured
       drawReelFrame(0, 0, false, 0);
+      try { (videoTrack as any)?.requestFrame?.(); } catch {}
 
       // Start recorder without micro-fragmentation
       recorder.start();
@@ -695,10 +702,12 @@ export function ReelExportDialog({
               : 0;
 
             drawReelFrame(slideIndex, timeIntoSlide, isTransitioning, transitionProgress);
+            try { (videoTrack as any)?.requestFrame?.(); } catch {}
 
             if (elapsed >= totalDurationMs) {
               // Final frame holding
               drawReelFrame(totalSlides - 1, staticDurationMs, false, 0);
+              try { (videoTrack as any)?.requestFrame?.(); } catch {}
               cleanup();
               resolveAnim();
             }
@@ -843,6 +852,10 @@ export function ReelExportDialog({
 
   const handleDownload = () => {
     if (!videoUrl || !videoBlob) return;
+    if (videoPreviewRef.current) {
+      try { videoPreviewRef.current.pause(); } catch {}
+      setIsPlayingPreview(false);
+    }
     const cleanTitle = carouselName
       ? carouselName.trim().replace(/[<>:"/\\|?*]/g, "").replace(/\s+/g, "-")
       : `reel-${carouselId}`;
@@ -856,7 +869,7 @@ export function ReelExportDialog({
     a.click();
     setTimeout(() => {
       try { document.body.removeChild(a); } catch {}
-    }, 200);
+    }, 250);
   };
 
   const togglePreviewPlay = () => {
@@ -1859,8 +1872,22 @@ export function ReelExportDialog({
           </div>
         </div>
 
-        {/* Hidden Canvas used for rendering */}
-        <canvas ref={canvasRef} className="hidden" />
+        {/* Connected Canvas used for real-time video capture without background throttling */}
+        <canvas
+          ref={canvasRef}
+          width={1080}
+          height={1920}
+          style={{
+            position: "fixed",
+            left: "-9999px",
+            top: 0,
+            width: "1080px",
+            height: "1920px",
+            pointerEvents: "none",
+            opacity: 0,
+            zIndex: -999,
+          }}
+        />
 
         {/* Footer Actions */}
         <div className="px-6 py-4 border-t border-border bg-muted/20 flex items-center justify-between">

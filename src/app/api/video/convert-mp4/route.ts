@@ -46,8 +46,10 @@ export async function POST(request: Request) {
     await fs.promises.writeFile(inTempFile, inputBuffer);
 
     // Convert into standard H.264 (avc1) + AAC (mp4a) with +faststart
-    // -fflags +genpts and -avoid_negative_ts make_zero fix timestamp jitter from canvas.captureStream
-    // -r 30 enforces standard CFR 30fps for Instagram/TikTok/Shorts compatibility
+    // -vf fps=fps=30:round=near enforces a strictly monotonic CFR 30.000 fps timeline without PTS gaps
+    // -g 30 and -keyint_min 30 force an IDR keyframe every 1.0s, eliminating player freezes/hiccups
+    // -profile:v high and -level 4.1 ensure universal hardware acceleration in Windows Media Player & iOS
+    // -af aresample=async=1000 ensures audio and video streams remain perfectly synchronized
     const args = [
       "-y",
       "-fflags",
@@ -56,20 +58,32 @@ export async function POST(request: Request) {
       "make_zero",
       "-i",
       inTempFile,
-      "-r",
-      "30",
+      "-vf",
+      "fps=fps=30:round=near,format=yuv420p",
       "-c:v",
       "libx264",
-      "-pix_fmt",
-      "yuv420p",
       "-preset",
-      "veryfast",
+      "fast",
+      "-crf",
+      "20",
+      "-profile:v",
+      "high",
+      "-level",
+      "4.1",
+      "-g",
+      "30",
+      "-keyint_min",
+      "30",
+      "-sc_threshold",
+      "0",
       "-c:a",
       "aac",
       "-b:a",
       "192k",
       "-ar",
       "44100",
+      "-af",
+      "aresample=async=1000",
       "-movflags",
       "+faststart",
       outTempFile,
