@@ -17,8 +17,8 @@ import {
   Swords,
   Brain,
   Flame,
-  PlusCircle,
   TrendingUp,
+  CheckCircle2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { CommentStrategy, CommentStrategyType } from "@/lib/caption-generator";
@@ -61,7 +61,7 @@ export function CaptionPanel({
   const [strategies, setStrategies] = useState<CommentStrategy[]>([]);
   const [selectedStrategyId, setSelectedStrategyId] = useState<CommentStrategyType>("lead_magnet");
   const [customKeyword, setCustomKeyword] = useState<string>("");
-  const [isInsertingSlide, setIsInsertingSlide] = useState(false);
+  const [isUpdatingSlide, setIsUpdatingSlide] = useState(false);
   const [slideSuccess, setSlideSuccess] = useState<string | null>(null);
 
   // Fetch initial strategies if carouselId changes
@@ -162,7 +162,7 @@ export function CaptionPanel({
     setSelectedStrategyId(strategy.id);
     if (!carouselId) return;
 
-    // Instantly update local caption and push to server
+    // Instantly update local caption and persist
     onUpdateCaptionData?.({
       caption: strategy.fullCaption,
       hashtags: hashtags || [],
@@ -184,9 +184,10 @@ export function CaptionPanel({
     }
   };
 
-  const handleInsertBoostSlide = async (mode: "append" | "replace_last" = "append") => {
+  // Safe Slide Update: Replaces the final CTA slide by default to avoid duplicates
+  const handleSyncFinalSlide = async (mode: "replace_last" | "append" = "replace_last") => {
     if (!carouselId) return;
-    setIsInsertingSlide(true);
+    setIsUpdatingSlide(true);
     setSlideSuccess(null);
     try {
       const res = await fetch(`/api/carousels/${carouselId}/slides/boost-cta`, {
@@ -199,14 +200,14 @@ export function CaptionPanel({
         }),
       });
       if (res.ok) {
-        setSlideSuccess(mode === "replace_last" ? "Slide finale mise à jour !" : "Slide CTA ajoutée au carrousel !");
+        setSlideSuccess(mode === "replace_last" ? "Slide finale mise à jour !" : "Slide CTA ajoutée !");
         await onRefreshCarousel?.();
         setTimeout(() => setSlideSuccess(null), 3000);
       }
     } catch (err) {
-      console.error("Failed to insert boost slide:", err);
+      console.error("Failed to update final slide:", err);
     } finally {
-      setIsInsertingSlide(false);
+      setIsUpdatingSlide(false);
     }
   };
 
@@ -215,8 +216,8 @@ export function CaptionPanel({
 
   const titleBadges = [
     { label: "🎯 Curiosité", color: "text-cyan-400 bg-cyan-500/10 border-cyan-500/30" },
-    { label: "⚡ Erreur / Déclic", color: "text-purple-400 bg-purple-500/10 border-purple-500/30" },
-    { label: "🚀 Résultat / Action", color: "text-emerald-400 bg-emerald-500/10 border-emerald-500/30" },
+    { label: "⚡ Erreur", color: "text-purple-400 bg-purple-500/10 border-purple-500/30" },
+    { label: "🚀 Action", color: "text-emerald-400 bg-emerald-500/10 border-emerald-500/30" },
   ];
 
   return (
@@ -229,11 +230,11 @@ export function CaptionPanel({
         >
           <Sparkles className="h-3.5 w-3.5 text-accent animate-pulse" />
           <span className="font-semibold text-foreground">
-            Titres Viraux & Légende Optimisée
+            Titres Viraux &amp; Légende Optimisée
           </span>
           <span className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
             <ShieldCheck className="h-2.5 w-2.5" />
-            Anti-Shadowban 2026
+            Anti-Shadowban
           </span>
           <span className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full bg-cyan-500/15 text-cyan-400 border border-cyan-500/30">
             <TrendingUp className="h-2.5 w-2.5" />
@@ -263,13 +264,13 @@ export function CaptionPanel({
       </div>
 
       {expanded && (
-        <div className="px-4 py-3 space-y-4 max-h-[380px] overflow-y-auto">
+        <div className="px-4 py-3 space-y-3.5 max-h-[340px] overflow-y-auto">
           {!hasContent ? (
-            <div className="p-4 rounded-xl border border-dashed border-accent/40 bg-accent/5 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div className="p-3.5 rounded-xl border border-dashed border-accent/40 bg-accent/5 flex flex-col sm:flex-row items-center justify-between gap-3">
               <div className="flex items-center gap-2.5 text-xs text-foreground">
                 <Sparkles className="h-4 w-4 text-accent shrink-0" />
                 <span>
-                  Générez 3 titres viraux, 4 stratégies de commentaires pour l&apos;algo et une légende anti-shadowban.
+                  Générez instantanément 3 titres viraux, la légende optimisée et la stratégie de commentaires.
                 </span>
               </div>
               <Button
@@ -280,12 +281,141 @@ export function CaptionPanel({
                 className="text-xs gap-1.5 shrink-0 shadow-xs"
               >
                 <RefreshCw className={`h-3.5 w-3.5 ${isGenerating ? "animate-spin" : ""}`} />
-                <span>{isGenerating ? "Génération en cours..." : "Générer avec l'IA"}</span>
+                <span>{isGenerating ? "Génération..." : "Générer avec l'IA"}</span>
               </Button>
             </div>
           ) : (
             <>
-              {/* Section 1: Suggestions de Titres Viraux (A/B testing) */}
+              {/* SECTION 1: Stratégies Algorithme (Booster de commentaires) */}
+              <div className="rounded-xl border border-cyan-500/25 bg-cyan-950/20 p-3 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <TrendingUp className="h-3.5 w-3.5 text-cyan-400" />
+                    <span className="text-xs font-semibold text-foreground">
+                      Stratégie Commentaires (Vélocité Algorithme)
+                    </span>
+                  </div>
+                  {currentStrategy && (
+                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                      {currentStrategy.multiplier}
+                    </span>
+                  )}
+                </div>
+
+                {/* 4 Strategy Pills */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                  {[
+                    { id: "lead_magnet", label: "🎁 Lead Magnet", badge: "+500%", icon: Gift },
+                    { id: "debate", label: "⚔️ Vote 1 ou 2", badge: "+300%", icon: Swords },
+                    { id: "expert_challenge", label: "🧠 Défi Senior", badge: "+250%", icon: Brain },
+                    { id: "experience", label: "🔥 Anecdote", badge: "+200%", icon: Flame },
+                  ].map((tab) => {
+                    const isSelected = selectedStrategyId === tab.id;
+                    const matchedStrat = strategies.find((s) => s.id === tab.id);
+
+                    return (
+                      <button
+                        key={tab.id}
+                        type="button"
+                        onClick={() => {
+                          if (matchedStrat) {
+                            handleApplyStrategy(matchedStrat);
+                          } else {
+                            handleGenerate(tab.id as CommentStrategyType);
+                          }
+                        }}
+                        className={`flex items-center justify-between px-2.5 py-1.5 rounded-lg border text-left transition-all ${
+                          isSelected
+                            ? "bg-cyan-500/20 border-cyan-400 text-foreground font-semibold shadow-xs ring-1 ring-cyan-400/30"
+                            : "bg-surface/80 border-border/80 text-muted-foreground hover:bg-muted/40 hover:text-foreground"
+                        }`}
+                      >
+                        <span className="text-[11px] truncate">{tab.label}</span>
+                        <span className="text-[9px] font-bold text-cyan-400 ml-1">
+                          {tab.badge}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Strategy Details & One-Click Final Slide Sync */}
+                {currentStrategy && (
+                  <div className="bg-background/80 rounded-lg p-2.5 border border-border/60 space-y-2">
+                    <p className="text-[11px] text-muted-foreground leading-relaxed">
+                      💡 <strong>{currentStrategy.title}</strong> : {currentStrategy.description}
+                    </p>
+
+                    {/* Lead magnet keyword modifier */}
+                    {selectedStrategyId === "lead_magnet" && (
+                      <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-border/40">
+                        <span className="text-[11px] text-muted-foreground">
+                          Mot-clé DM :
+                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <input
+                            type="text"
+                            value={customKeyword}
+                            onChange={(e) => setCustomKeyword(e.target.value.toUpperCase())}
+                            placeholder="GUIDE"
+                            className="bg-muted px-2 py-0.5 text-xs font-mono font-bold text-accent rounded border border-accent/40 w-24 uppercase focus:outline-hidden focus:ring-1 focus:ring-accent"
+                          />
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-6 text-[10px] px-2"
+                            onClick={() => handleGenerate("lead_magnet", customKeyword)}
+                            disabled={isGenerating}
+                          >
+                            Actualiser
+                          </Button>
+                        </div>
+                        <span className="text-[10px] text-emerald-400/90 font-mono">
+                          ✓ Compatible ManyChat &amp; Make
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Single Clean Action: Sync the Final CTA Slide (No duplicates!) */}
+                    <div className="flex flex-wrap items-center justify-between gap-2 pt-1.5 border-t border-border/40">
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="accent"
+                          size="sm"
+                          disabled={isUpdatingSlide}
+                          onClick={() => handleSyncFinalSlide("replace_last")}
+                          className="h-7 text-xs gap-1.5 font-medium shadow-xs"
+                          title="Met à jour la dernière slide du carrousel avec cette stratégie"
+                        >
+                          <Sparkles className="h-3 w-3" />
+                          <span>
+                            {isUpdatingSlide ? "Mise à jour..." : "Mettre à jour la slide finale (CTA)"}
+                          </span>
+                        </Button>
+
+                        <button
+                          type="button"
+                          disabled={isUpdatingSlide}
+                          onClick={() => handleSyncFinalSlide("append")}
+                          className="text-[10px] text-muted-foreground hover:text-accent underline pl-1"
+                          title="Ajouter comme une slide additionnelle au lieu de remplacer la dernière"
+                        >
+                          + Ajouter en slide supplémentaire
+                        </button>
+                      </div>
+
+                      {slideSuccess && (
+                        <span className="text-[11px] text-emerald-400 font-medium flex items-center gap-1 animate-in fade-in">
+                          <CheckCircle2 className="h-3 w-3 text-emerald-400" />
+                          {slideSuccess}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* SECTION 2: Suggestions de Titres Viraux (A/B testing) */}
               {alternativeTitles && alternativeTitles.length > 0 && (
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
@@ -323,7 +453,7 @@ export function CaptionPanel({
                         >
                           <div className="flex items-center gap-2 overflow-hidden min-w-0 flex-1">
                             <span
-                              className={`text-[10px] font-medium px-2 py-0.5 rounded-md border shrink-0 ${badge.color}`}
+                              className={`text-[10px] font-medium px-1.5 py-0.2 rounded-md border shrink-0 ${badge.color}`}
                             >
                               {badge.label}
                             </span>
@@ -381,146 +511,7 @@ export function CaptionPanel({
                 </div>
               )}
 
-              {/* Section 2: Stratégies Algorithme (Booster de commentaires) */}
-              <div className="rounded-xl border border-cyan-500/25 bg-cyan-950/15 p-3 space-y-2.5">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <TrendingUp className="h-4 w-4 text-cyan-400" />
-                    <div>
-                      <span className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-                        Stratégie Algorithme : Booster de Commentaires
-                        <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-cyan-500/20 text-cyan-300 font-mono">
-                          Priorité Algo 2026
-                        </span>
-                      </span>
-                    </div>
-                  </div>
-                  {currentStrategy && (
-                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                      {currentStrategy.multiplier}
-                    </span>
-                  )}
-                </div>
-
-                {/* 4 Strategy Tabs */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
-                  {[
-                    { id: "lead_magnet", label: "🎁 Lead Magnet", badge: "+500%", icon: Gift },
-                    { id: "debate", label: "⚔️ Vote 1 ou 2", badge: "+300%", icon: Swords },
-                    { id: "expert_challenge", label: "🧠 Défi Senior", badge: "+250%", icon: Brain },
-                    { id: "experience", label: "🔥 Anecdote", badge: "+200%", icon: Flame },
-                  ].map((tab) => {
-                    const isSelected = selectedStrategyId === tab.id;
-                    const matchedStrat = strategies.find((s) => s.id === tab.id);
-
-                    return (
-                      <button
-                        key={tab.id}
-                        type="button"
-                        onClick={() => {
-                          if (matchedStrat) {
-                            handleApplyStrategy(matchedStrat);
-                          } else {
-                            handleGenerate(tab.id as CommentStrategyType);
-                          }
-                        }}
-                        className={`flex flex-col items-start p-2 rounded-lg border text-left transition-all ${
-                          isSelected
-                            ? "bg-cyan-500/20 border-cyan-400 text-foreground shadow-xs"
-                            : "bg-surface/60 border-border/80 text-muted-foreground hover:bg-muted/40 hover:text-foreground"
-                        }`}
-                      >
-                        <div className="flex items-center justify-between w-full">
-                          <span className="text-[11px] font-medium flex items-center gap-1">
-                            {tab.label}
-                          </span>
-                          <span className="text-[9px] font-bold text-cyan-400">
-                            {tab.badge}
-                          </span>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-
-                {/* Strategy Details & Actions */}
-                {currentStrategy && (
-                  <div className="bg-background/80 rounded-lg p-2.5 border border-border/60 space-y-2">
-                    <p className="text-[11px] text-muted-foreground leading-relaxed">
-                      💡 <strong>{currentStrategy.title}</strong> : {currentStrategy.description}
-                    </p>
-
-                    {/* Lead magnet keyword modifier */}
-                    {selectedStrategyId === "lead_magnet" && (
-                      <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-border/40">
-                        <span className="text-[11px] text-muted-foreground">
-                          Mot-clé ManyChat / DM :
-                        </span>
-                        <div className="flex items-center gap-1.5">
-                          <input
-                            type="text"
-                            value={customKeyword}
-                            onChange={(e) => setCustomKeyword(e.target.value.toUpperCase())}
-                            placeholder="GUIDE"
-                            className="bg-muted px-2 py-0.5 text-xs font-mono font-bold text-accent rounded border border-accent/40 w-24 uppercase focus:outline-hidden focus:ring-1 focus:ring-accent"
-                          />
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="h-6 text-[10px] px-2"
-                            onClick={() => handleGenerate("lead_magnet", customKeyword)}
-                            disabled={isGenerating}
-                          >
-                            Actualiser
-                          </Button>
-                        </div>
-                        <span className="text-[10px] text-emerald-400/90 font-mono">
-                          ✓ Compatible ManyChat &amp; Make
-                        </span>
-                      </div>
-                    )}
-
-                    {/* Slide CTA insertion button */}
-                    <div className="flex flex-wrap items-center justify-between gap-2 pt-1.5 border-t border-border/40">
-                      <div className="flex items-center gap-2">
-                        <Button
-                          variant="accent"
-                          size="sm"
-                          disabled={isInsertingSlide}
-                          onClick={() => handleInsertBoostSlide("append")}
-                          className="h-7 text-xs gap-1.5 font-medium shadow-xs"
-                          title="Ajouter une slide de fin avec ce call-to-action percutant"
-                        >
-                          <PlusCircle className="h-3.5 w-3.5" />
-                          <span>
-                            {isInsertingSlide ? "Insertion..." : "Insérer la Slide CTA dans le Carrousel"}
-                          </span>
-                        </Button>
-
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          disabled={isInsertingSlide}
-                          onClick={() => handleInsertBoostSlide("replace_last")}
-                          className="h-7 text-[11px] text-muted-foreground hover:text-foreground"
-                          title="Remplacer la dernière slide existante par ce CTA optimisé"
-                        >
-                          Remplacer la slide finale
-                        </Button>
-                      </div>
-
-                      {slideSuccess && (
-                        <span className="text-[11px] text-emerald-400 font-medium flex items-center gap-1 animate-in fade-in">
-                          <Check className="h-3 w-3" />
-                          {slideSuccess}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Section 3: Description / Caption */}
+              {/* SECTION 3: Description / Caption */}
               {caption && caption.trim() && (
                 <div>
                   <div className="flex items-center justify-between mb-1">
@@ -544,13 +535,13 @@ export function CaptionPanel({
                       <span>{copiedCaption ? "Copié !" : "Copier la description"}</span>
                     </Button>
                   </div>
-                  <pre className="text-xs text-foreground bg-muted/50 border border-border/70 rounded-lg p-2.5 whitespace-pre-wrap leading-relaxed font-mono max-h-28 overflow-y-auto">
+                  <pre className="text-xs text-foreground bg-muted/50 border border-border/70 rounded-lg p-2.5 whitespace-pre-wrap leading-relaxed font-mono max-h-24 overflow-y-auto">
                     {caption}
                   </pre>
                 </div>
               )}
 
-              {/* Section 4: Hashtags Anti-Shadowban */}
+              {/* SECTION 4: Hashtags Anti-Shadowban */}
               {hashtags && hashtags.length > 0 && (
                 <div>
                   <div className="flex items-center justify-between mb-1">

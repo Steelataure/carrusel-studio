@@ -29,6 +29,45 @@ export interface GeneratedContent {
   keyword: string;
 }
 
+export function extractCleanTopic(name: string): string {
+  let clean = (name || "Guide Développeur")
+    .replace(/\s*\(from template\)\s*/gi, "")
+    .replace(/\s*\(\d+\s*slides?\)\s*/gi, "")
+    .trim();
+
+  // Strip recurrent viral hook prefixes if already applied (case-insensitive)
+  const hookPrefixes = [
+    /^ce que 90% des d[eé]veloppeurs ignorent sur\s+/i,
+    /^l['’]erreur (classique|fatale) (en|sur|dans)\s+/i,
+    /^le guide ultra-rapide pour ma[iî]triser\s+/i,
+    /^arr[eê]te d['’]utiliser\s+/i,
+    /^tu confonds encore\s+/i,
+    /^le guide visuel (des|du|de)\s+/i,
+    /^comment concevoir\s+/i,
+  ];
+
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const prefix of hookPrefixes) {
+      if (prefix.test(clean)) {
+        clean = clean.replace(prefix, "").trim();
+        changed = true;
+      }
+    }
+  }
+
+  // Strip trailing qualifiers like "qui te fait perdre des heures" or "proprement"
+  clean = clean
+    .replace(/\s+qui te fait perdre des heures$/i, "")
+    .replace(/\s+proprement$/i, "")
+    .replace(/\s+en 60s chrono$/i, "")
+    .replace(/\s+expliqu[eé] simplement$/i, "")
+    .trim();
+
+  return clean || name || "Guide Développeur";
+}
+
 export function getSmartKeyword(cleanName: string): string {
   const lower = cleanName.toLowerCase();
   if (lower.includes("git")) return "GIT";
@@ -122,10 +161,7 @@ export function generateBoostCtaSlideHtml(
   const ratio: AspectRatio = carousel.aspectRatio || "4:5";
   const { width, height } = DIMENSIONS[ratio] || DIMENSIONS["4:5"];
 
-  const cleanName = (carousel.name || "Guide Développeur")
-    .replace(/\s*\(from template\)\s*/gi, "")
-    .replace(/\s*\(6 slides\)\s*/gi, "")
-    .trim();
+  const cleanName = extractCleanTopic(carousel.name);
 
   const kw = (keyword || getSmartKeyword(cleanName)).toUpperCase();
   const debate = getTopicDebate(cleanName);
@@ -259,11 +295,7 @@ export function generateViralCaption(
 ): GeneratedContent {
   const name = carousel.name || "Guide Développeur";
 
-  // Clean title for topic detection
-  const cleanName = name
-    .replace(/\s*\(from template\)\s*/gi, "")
-    .replace(/\s*\(6 slides\)\s*/gi, "")
-    .trim();
+  const cleanName = extractCleanTopic(name);
 
   const kw = (options?.customKeyword || getSmartKeyword(cleanName)).toUpperCase();
   const debate = getTopicDebate(cleanName);
