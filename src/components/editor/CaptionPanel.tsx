@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Copy,
   Check,
@@ -13,8 +13,15 @@ import {
   ArrowRight,
   Maximize2,
   RefreshCw,
+  Gift,
+  Swords,
+  Brain,
+  Flame,
+  PlusCircle,
+  TrendingUp,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import type { CommentStrategy, CommentStrategyType } from "@/lib/caption-generator";
 
 interface CaptionPanelProps {
   carouselId?: string;
@@ -29,6 +36,7 @@ interface CaptionPanelProps {
     hashtags: string[];
     alternativeTitles: string[];
   }) => void;
+  onRefreshCarousel?: () => Promise<void> | void;
 }
 
 export function CaptionPanel({
@@ -40,8 +48,8 @@ export function CaptionPanel({
   onApplyTitle,
   onOpenModal,
   onUpdateCaptionData,
+  onRefreshCarousel,
 }: CaptionPanelProps) {
-  // Open by default so the user sees it immediately
   const [expanded, setExpanded] = useState(true);
   const [copiedCaption, setCopiedCaption] = useState(false);
   const [copiedHashtags, setCopiedHashtags] = useState(false);
@@ -49,10 +57,44 @@ export function CaptionPanel({
   const [appliedTitleIndex, setAppliedTitleIndex] = useState<number | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
 
+  // Strategy states
+  const [strategies, setStrategies] = useState<CommentStrategy[]>([]);
+  const [selectedStrategyId, setSelectedStrategyId] = useState<CommentStrategyType>("lead_magnet");
+  const [customKeyword, setCustomKeyword] = useState<string>("");
+  const [isInsertingSlide, setIsInsertingSlide] = useState(false);
+  const [slideSuccess, setSlideSuccess] = useState<string | null>(null);
+
+  // Fetch initial strategies if carouselId changes
+  useEffect(() => {
+    if (!carouselId) return;
+    let isCancelled = false;
+    async function loadStrategies() {
+      try {
+        const res = await fetch(`/api/carousels/${carouselId}/caption`);
+        if (res.ok) {
+          const data = await res.json();
+          if (!isCancelled && data.strategies) {
+            setStrategies(data.strategies);
+            if (data.keyword && !customKeyword) {
+              setCustomKeyword(data.keyword);
+            }
+          }
+        }
+      } catch {
+        // silent fallback
+      }
+    }
+    loadStrategies();
+    return () => {
+      isCancelled = true;
+    };
+  }, [carouselId]);
+
   const hasContent =
     (caption && caption.trim()) ||
     (hashtags && hashtags.length > 0) ||
-    (alternativeTitles && alternativeTitles.length > 0);
+    (alternativeTitles && alternativeTitles.length > 0) ||
+    strategies.length > 0;
 
   const handleCopy = async (
     text: string,
@@ -80,16 +122,34 @@ export function CaptionPanel({
     }
   };
 
-  const handleGenerate = async () => {
+  const handleGenerate = async (stratId?: CommentStrategyType, kw?: string) => {
     if (!carouselId) return;
     setIsGenerating(true);
     try {
       const res = await fetch(`/api/carousels/${carouselId}/caption`, {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          strategyId: stratId || selectedStrategyId,
+          keyword: kw !== undefined ? kw : customKeyword,
+        }),
       });
       if (res.ok) {
         const data = await res.json();
-        onUpdateCaptionData?.(data);
+        onUpdateCaptionData?.({
+          caption: data.caption,
+          hashtags: data.hashtags,
+          alternativeTitles: data.alternativeTitles,
+        });
+        if (data.strategies) {
+          setStrategies(data.strategies);
+        }
+        if (data.keyword) {
+          setCustomKeyword(data.keyword);
+        }
+        if (stratId) {
+          setSelectedStrategyId(stratId);
+        }
       }
     } catch (err) {
       console.error("Failed to generate caption:", err);
@@ -97,6 +157,61 @@ export function CaptionPanel({
       setIsGenerating(false);
     }
   };
+
+  const handleApplyStrategy = async (strategy: CommentStrategy) => {
+    setSelectedStrategyId(strategy.id);
+    if (!carouselId) return;
+
+    // Instantly update local caption and push to server
+    onUpdateCaptionData?.({
+      caption: strategy.fullCaption,
+      hashtags: hashtags || [],
+      alternativeTitles: alternativeTitles || [],
+    });
+
+    try {
+      await fetch(`/api/carousels/${carouselId}/caption`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          caption: strategy.fullCaption,
+          hashtags,
+          alternativeTitles,
+        }),
+      });
+    } catch (err) {
+      console.error("Failed to persist strategy caption:", err);
+    }
+  };
+
+  const handleInsertBoostSlide = async (mode: "append" | "replace_last" = "append") => {
+    if (!carouselId) return;
+    setIsInsertingSlide(true);
+    setSlideSuccess(null);
+    try {
+      const res = await fetch(`/api/carousels/${carouselId}/slides/boost-cta`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          strategyId: selectedStrategyId,
+          keyword: customKeyword,
+          mode,
+        }),
+      });
+      if (res.ok) {
+        setSlideSuccess(mode === "replace_last" ? "Slide finale mise à jour !" : "Slide CTA ajoutée au carrousel !");
+        await onRefreshCarousel?.();
+        setTimeout(() => setSlideSuccess(null), 3000);
+      }
+    } catch (err) {
+      console.error("Failed to insert boost slide:", err);
+    } finally {
+      setIsInsertingSlide(false);
+    }
+  };
+
+  const currentStrategy =
+    strategies.find((s) => s.id === selectedStrategyId) || strategies[0];
 
   const titleBadges = [
     { label: "🎯 Curiosité", color: "text-cyan-400 bg-cyan-500/10 border-cyan-500/30" },
@@ -120,11 +235,10 @@ export function CaptionPanel({
             <ShieldCheck className="h-2.5 w-2.5" />
             Anti-Shadowban 2026
           </span>
-          {alternativeTitles && alternativeTitles.length > 0 && (
-            <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-accent/10 text-accent font-mono">
-              3 titres prêts
-            </span>
-          )}
+          <span className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full bg-cyan-500/15 text-cyan-400 border border-cyan-500/30">
+            <TrendingUp className="h-2.5 w-2.5" />
+            Booster Commentaires
+          </span>
         </button>
 
         <div className="flex items-center gap-1">
@@ -149,20 +263,20 @@ export function CaptionPanel({
       </div>
 
       {expanded && (
-        <div className="px-4 py-3 space-y-3.5 max-h-[300px] overflow-y-auto">
+        <div className="px-4 py-3 space-y-4 max-h-[380px] overflow-y-auto">
           {!hasContent ? (
             <div className="p-4 rounded-xl border border-dashed border-accent/40 bg-accent/5 flex flex-col sm:flex-row items-center justify-between gap-3">
               <div className="flex items-center gap-2.5 text-xs text-foreground">
                 <Sparkles className="h-4 w-4 text-accent shrink-0" />
                 <span>
-                  Générez instantanément 3 titres viraux pour les tests A/B, une légende avec hook et des hashtags anti-shadowban.
+                  Générez 3 titres viraux, 4 stratégies de commentaires pour l&apos;algo et une légende anti-shadowban.
                 </span>
               </div>
               <Button
                 variant="accent"
                 size="sm"
                 disabled={isGenerating}
-                onClick={handleGenerate}
+                onClick={() => handleGenerate()}
                 className="text-xs gap-1.5 shrink-0 shadow-xs"
               >
                 <RefreshCw className={`h-3.5 w-3.5 ${isGenerating ? "animate-spin" : ""}`} />
@@ -171,7 +285,7 @@ export function CaptionPanel({
             </div>
           ) : (
             <>
-              {/* Suggestions de Titres Viraux (A/B testing) */}
+              {/* Section 1: Suggestions de Titres Viraux (A/B testing) */}
               {alternativeTitles && alternativeTitles.length > 0 && (
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
@@ -183,7 +297,7 @@ export function CaptionPanel({
                     </div>
                     {carouselId && (
                       <button
-                        onClick={handleGenerate}
+                        onClick={() => handleGenerate()}
                         disabled={isGenerating}
                         className="text-[10px] text-muted-foreground hover:text-accent flex items-center gap-1"
                         title="Générer de nouveaux titres"
@@ -267,14 +381,153 @@ export function CaptionPanel({
                 </div>
               )}
 
-              {/* Description / Caption */}
+              {/* Section 2: Stratégies Algorithme (Booster de commentaires) */}
+              <div className="rounded-xl border border-cyan-500/25 bg-cyan-950/15 p-3 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <TrendingUp className="h-4 w-4 text-cyan-400" />
+                    <div>
+                      <span className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                        Stratégie Algorithme : Booster de Commentaires
+                        <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-cyan-500/20 text-cyan-300 font-mono">
+                          Priorité Algo 2026
+                        </span>
+                      </span>
+                    </div>
+                  </div>
+                  {currentStrategy && (
+                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                      {currentStrategy.multiplier}
+                    </span>
+                  )}
+                </div>
+
+                {/* 4 Strategy Tabs */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                  {[
+                    { id: "lead_magnet", label: "🎁 Lead Magnet", badge: "+500%", icon: Gift },
+                    { id: "debate", label: "⚔️ Vote 1 ou 2", badge: "+300%", icon: Swords },
+                    { id: "expert_challenge", label: "🧠 Défi Senior", badge: "+250%", icon: Brain },
+                    { id: "experience", label: "🔥 Anecdote", badge: "+200%", icon: Flame },
+                  ].map((tab) => {
+                    const isSelected = selectedStrategyId === tab.id;
+                    const matchedStrat = strategies.find((s) => s.id === tab.id);
+
+                    return (
+                      <button
+                        key={tab.id}
+                        type="button"
+                        onClick={() => {
+                          if (matchedStrat) {
+                            handleApplyStrategy(matchedStrat);
+                          } else {
+                            handleGenerate(tab.id as CommentStrategyType);
+                          }
+                        }}
+                        className={`flex flex-col items-start p-2 rounded-lg border text-left transition-all ${
+                          isSelected
+                            ? "bg-cyan-500/20 border-cyan-400 text-foreground shadow-xs"
+                            : "bg-surface/60 border-border/80 text-muted-foreground hover:bg-muted/40 hover:text-foreground"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between w-full">
+                          <span className="text-[11px] font-medium flex items-center gap-1">
+                            {tab.label}
+                          </span>
+                          <span className="text-[9px] font-bold text-cyan-400">
+                            {tab.badge}
+                          </span>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Strategy Details & Actions */}
+                {currentStrategy && (
+                  <div className="bg-background/80 rounded-lg p-2.5 border border-border/60 space-y-2">
+                    <p className="text-[11px] text-muted-foreground leading-relaxed">
+                      💡 <strong>{currentStrategy.title}</strong> : {currentStrategy.description}
+                    </p>
+
+                    {/* Lead magnet keyword modifier */}
+                    {selectedStrategyId === "lead_magnet" && (
+                      <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-border/40">
+                        <span className="text-[11px] text-muted-foreground">
+                          Mot-clé ManyChat / DM :
+                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <input
+                            type="text"
+                            value={customKeyword}
+                            onChange={(e) => setCustomKeyword(e.target.value.toUpperCase())}
+                            placeholder="GUIDE"
+                            className="bg-muted px-2 py-0.5 text-xs font-mono font-bold text-accent rounded border border-accent/40 w-24 uppercase focus:outline-hidden focus:ring-1 focus:ring-accent"
+                          />
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-6 text-[10px] px-2"
+                            onClick={() => handleGenerate("lead_magnet", customKeyword)}
+                            disabled={isGenerating}
+                          >
+                            Actualiser
+                          </Button>
+                        </div>
+                        <span className="text-[10px] text-emerald-400/90 font-mono">
+                          ✓ Compatible ManyChat &amp; Make
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Slide CTA insertion button */}
+                    <div className="flex flex-wrap items-center justify-between gap-2 pt-1.5 border-t border-border/40">
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="accent"
+                          size="sm"
+                          disabled={isInsertingSlide}
+                          onClick={() => handleInsertBoostSlide("append")}
+                          className="h-7 text-xs gap-1.5 font-medium shadow-xs"
+                          title="Ajouter une slide de fin avec ce call-to-action percutant"
+                        >
+                          <PlusCircle className="h-3.5 w-3.5" />
+                          <span>
+                            {isInsertingSlide ? "Insertion..." : "Insérer la Slide CTA dans le Carrousel"}
+                          </span>
+                        </Button>
+
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={isInsertingSlide}
+                          onClick={() => handleInsertBoostSlide("replace_last")}
+                          className="h-7 text-[11px] text-muted-foreground hover:text-foreground"
+                          title="Remplacer la dernière slide existante par ce CTA optimisé"
+                        >
+                          Remplacer la slide finale
+                        </Button>
+                      </div>
+
+                      {slideSuccess && (
+                        <span className="text-[11px] text-emerald-400 font-medium flex items-center gap-1 animate-in fade-in">
+                          <Check className="h-3 w-3" />
+                          {slideSuccess}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Section 3: Description / Caption */}
               {caption && caption.trim() && (
                 <div>
                   <div className="flex items-center justify-between mb-1">
                     <div className="flex items-center gap-1.5">
                       <MessageSquare className="h-3 w-3 text-cyan-400" />
                       <span className="text-[11px] font-semibold text-foreground">
-                        Légende Instagram Optimisée ({caption.length} car.)
+                        Légende Instagram &amp; LinkedIn Optimisée ({caption.length} car.)
                       </span>
                     </div>
                     <Button
@@ -291,13 +544,13 @@ export function CaptionPanel({
                       <span>{copiedCaption ? "Copié !" : "Copier la description"}</span>
                     </Button>
                   </div>
-                  <pre className="text-xs text-foreground bg-muted/50 border border-border/70 rounded-lg p-2.5 whitespace-pre-wrap leading-relaxed font-mono max-h-24 overflow-y-auto">
+                  <pre className="text-xs text-foreground bg-muted/50 border border-border/70 rounded-lg p-2.5 whitespace-pre-wrap leading-relaxed font-mono max-h-28 overflow-y-auto">
                     {caption}
                   </pre>
                 </div>
               )}
 
-              {/* Hashtags Anti-Shadowban */}
+              {/* Section 4: Hashtags Anti-Shadowban */}
               {hashtags && hashtags.length > 0 && (
                 <div>
                   <div className="flex items-center justify-between mb-1">

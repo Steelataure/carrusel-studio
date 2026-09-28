@@ -485,6 +485,7 @@ export default function CarouselEditorPage({ params }: PageProps) {
             onUpdateCaptionData={(data) => {
               setCarousel((prev) => (prev ? { ...prev, ...data } : null));
             }}
+            onRefreshCarousel={fetchCarousel}
           />
         </div>
       </div>
@@ -534,6 +535,7 @@ export default function CarouselEditorPage({ params }: PageProps) {
         onUpdateCaptionData={(data) => {
           setCarousel((prev) => (prev ? { ...prev, ...data } : null));
         }}
+        onRefreshCarousel={fetchCarousel}
       />
 
       {/* Filmstrip */}

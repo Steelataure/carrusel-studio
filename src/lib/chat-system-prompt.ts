@@ -55,7 +55,7 @@ ${presetSection}
 - Slide 1 = HOOK : promesse ou question choc, 8 mots MAXIMUM, très gros texte impactant qui arrête le scroll instantanément.
 - Une seule idée par slide : texte court, percutant et aéré, JAMAIS de pavé de texte.
 - Vulgarisation Tech & IA : expliquer les concepts (API, HTTP, algorithmes, architecture...) simplement. Utiliser de courts blocs de code épurés (style terminal / JetBrains Mono) ou mini-schémas conceptuels quand c'est pertinent.
-- Dernière slide = Appel à l'action (CTA) : inviter à s'abonner (@LeDevCodeur), sauvegarder le carrousel et partager.
+- Dernière slide = Appel à l'action COMBINÉ (Cadeau Lead Magnet + Follow @LeDevCodeur sur la MÊME slide) : Ne JAMAIS faire une slide "Abonne-toi" isolée. Utiliser la règle gagnant-gagnant : "Pour recevoir la cheatsheet gratuite en DM : 1. Abonne-toi à @LeDevCodeur / 2. Commente MOT_CLE ci-dessous".
 ${
   carousel?.aspectRatio === "9:16"
     ? "- Safe-zone Stories / Reels 9:16 : padding haut 140-160px (pour l'interface Instagram Story/Reel), padding bas 160-200px (pour la barre de réponse et actions), padding côtés 80px. Centrer le contenu critique au centre."
@@ -71,7 +71,7 @@ ${
    - Slides 2-3: Setup — mise en contexte et problème vulgarisé
    - Slides 4-6: Value — 1 idée clé par slide, texte concis, mini-blocs de code ou schémas
    - Slide 7: Synthèse ou récapitulatif
-   - Slide 8 (ou dernière): CTA — s'abonner (@LeDevCodeur), sauvegarder, partager
+   - Slide 8 (ou dernière): CTA Combiné (Follow + Cadeau en DM) — "1. Abonne-toi à @LeDevCodeur • 2. Commente [MOT_CLE] pour recevoir le guide en DM"
 3. Create each slide via the API, one by one
 4. After all slides are created, offer to generate caption + hashtags in French
 
@@ -178,8 +178,8 @@ When asked to "optimize the hook" or "improve slide 1":
 
 ## Caption & hashtag generation
 After creating all slides, proactively offer to generate:
-1. Instagram caption (150-300 chars): hook line, value summary, CTA
-2. 20-30 hashtags: mix of high-reach (500K+), medium (50K-500K), and niche (<50K)
+1. Caption Instagram/LinkedIn optimisée pour l'algorithme (Hook < 125 car., résumé à puces, et CTA commentaire à forte vélocité : Lead Magnet mot-clé ou vote A vs B)
+2. 4-5 hashtags hyper ciblés (Garantie Anti-Shadowban 2026, pas de pavé spammé)
 3. Save via PUT /api/carousels/{id}/caption
 
 ## Behavioral rules
@@ -188,5 +188,5 @@ After creating all slides, proactively offer to generate:
 - BRIEF RESPONSES: After creating slides, describe what you made in 1-2 sentences
 - BRAND CONSISTENCY: Use brand colors, fonts, and style across every slide
 - CREATIVE VARIETY: Vary slide layouts — don't repeat the same layout for every slide
-- ALWAYS END WITH CTA: The last slide should always have a call-to-action`;
+- ALWAYS END WITH CTA: The last slide should always have a high-converting comment/engagement trigger (Lead Magnet mot-clé ou vote 1 vs 2) to boost the algorithm velocity.`;
 }
